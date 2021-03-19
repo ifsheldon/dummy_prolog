@@ -5,7 +5,10 @@ module Algorithms
 where
 
 import SigmaSignature
-
+import Data.HashMap.Strict as HashMap
+import Data.Maybe
+------------------ This part is for CNF conversion
+------------------
 stripDoubleNot :: Formula -> Formula
 stripDoubleNot formula = case formula of
   NOT (NOT f) -> stripDoubleNot f
@@ -37,3 +40,21 @@ stripArrows formula = case formula of
   st1 `OR` st2 -> stripArrows st1 `AND` stripArrows st2
   QFormula quantifier var f -> QFormula quantifier var (stripArrows f)
   _ -> formula
+
+replaceTerm :: HashMap [Char] [Char] -> Term -> Term
+replaceTerm mappings term = case term of 
+  ConstTerm const -> term
+  VarTerm (Variable varName) -> 
+    if varName `member` mappings then
+      let mappedName = fromJust (varName `HashMap.lookup` mappings)
+        in VarTerm (Variable mappedName)
+    else
+      term
+
+replaceVarNameInTerms :: HashMap [Char] [Char] -> [Term] -> [Term]
+replaceVarNameInTerms nameMappings terms = Prelude.map (replaceTerm nameMappings) terms
+
+standardize :: Formula -> HashMap [Char] [Char] -> Int -> Formula 
+standardize formula nameMappings usedNameCount = case formula of 
+  AtomicFormula relation terms -> AtomicFormula relation (replaceVarNameInTerms nameMappings terms)
+  _ -> formula -- TODO
