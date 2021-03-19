@@ -1,10 +1,10 @@
 module SigmaSignature
-  ( Constant,
+  ( Constant (..),
     Variable,
-    Term,
+    Term (..),
     Function,
     Relation,
-    Formula,
+    Formula (..),
     validateFormula,
   )
 where
