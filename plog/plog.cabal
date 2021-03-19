@@ -30,6 +30,7 @@ library
       Lib
       SigmaSignature
       Theories
+      Algorithms
   other-modules:
       Paths_plog
   hs-source-dirs:
