@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      SigmaSignature
   other-modules:
       Paths_plog
   hs-source-dirs:
