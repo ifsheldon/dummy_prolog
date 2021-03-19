@@ -29,6 +29,7 @@ library
   exposed-modules:
       Lib
       SigmaSignature
+      Theories
   other-modules:
       Paths_plog
   hs-source-dirs:
