@@ -1,10 +1,11 @@
 module SigmaSignature
   ( Constant (..),
-    Variable,
+    Variable (..),
     Term (..),
-    Function,
-    Relation,
+    Function(..),
+    Relation(..),
     Formula (..),
+    Quantifier (..),
     validateFormula,
   )
 where
@@ -19,21 +20,22 @@ data Function = Function ([Term] -> Term)
 
 data Relation = Relation [Char] Int deriving (Show) -- [Char] for relation name, Int for arity
 
+data Quantifier = EXIST | FORALL deriving (Show)
+
 data Formula
   = AtomicFormula Relation [Term]
   | NOT Formula
-  | Formula `AND` Formula
-  | Formula `OR` Formula
-  | Formula `IMPLY` Formula
-  | Formula `EQUIV` Formula
-  | FORALL Variable Formula --TODO: need to check this, according to definition Var should be free in Formula
-  | EXIST Variable Formula --TODO: need to check this
+  | AND Formula  Formula
+  | OR Formula  Formula
+  | IMPLY Formula Formula
+  | EQUIV Formula Formula
+  | QFormula Quantifier Variable Formula --NOTICE: need to construct variables first, and reuse variables
   deriving (Show)
 
 validateFormula :: Formula -> Bool
 validateFormula formula = case formula of
-  FORALL var f -> True -- TODO
-  EXIST var f -> True -- TODO
+  QFormula EXIST var f -> True -- TODO
+  QFormula FORALL var f -> True -- TODO
   NOT f -> validateFormula f
   a `AND` b -> validateFormula a && validateFormula b
   a `OR` b -> validateFormula a && validateFormula b
