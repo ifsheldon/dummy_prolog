@@ -5,6 +5,7 @@ module SigmaSignature
     Function,
     Relation,
     Formula,
+    validateFormula,
   )
 where
 
@@ -24,7 +25,18 @@ data Formula
   | Formula `AND` Formula
   | Formula `OR` Formula
   | Formula `IMPLY` Formula
-  | Formula `EQUI` Formula
+  | Formula `EQUIV` Formula
   | FORALL Variable Formula --TODO: need to check this, according to definition Var should be free in Formula
   | EXIST Variable Formula --TODO: need to check this
   deriving (Show)
+
+validateFormula :: Formula -> Bool
+validateFormula formula = case formula of
+  FORALL var f -> True -- TODO
+  EXIST var f -> True -- TODO
+  NOT f -> validateFormula f
+  a `AND` b -> validateFormula a && validateFormula b
+  a `OR` b -> validateFormula a && validateFormula b
+  a `IMPLY` b -> validateFormula a && validateFormula b
+  a `EQUIV` b -> validateFormula a && validateFormula b
+  _ -> True
