@@ -1,7 +1,9 @@
 module Algorithms
   ( stripArrows,
     negateFormula,
-    standardize
+    standardize,
+    VarRecord(..),
+    emptyVarRecord
   )
 where
 
@@ -44,44 +46,84 @@ stripArrows formula = case formula of
   QFormula quantifier var f -> QFormula quantifier var (stripArrows f)
   _ -> formula
 
-replaceTerm :: HashMap [Char] [Char] -> Term -> Term
-replaceTerm mappings term = case term of 
-  ConstTerm const -> term
+data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char], 
+                            variableTrack :: [[Char]],
+                            variableCount :: Int } deriving (Show)
+
+emptyVarRecord :: VarRecord
+emptyVarRecord = VarRecord {nameMappings=empty, variableTrack=[], variableCount=0}
+
+replaceTerm :: VarRecord -> Term -> (VarRecord, Term)
+replaceTerm varRecord term = case term of
+  ConstTerm const -> (varRecord,term)
   VarTerm (Variable varName) -> 
-    if varName `member` mappings then
-      let mappedName = fromJust (varName `HashMap.lookup` mappings)
-        in VarTerm (Variable mappedName)
+    let mappings = nameMappings varRecord
+        varTrack = variableTrack varRecord
+        varCount = variableCount varRecord
+        bounded = varName `elem` varTrack
+        nameUsed = varName `member` mappings
+    in
+      if nameUsed && bounded then
+        let mappedName = fromJust (varName `HashMap.lookup` mappings)
+          in (varRecord, VarTerm (Variable mappedName))
+      else if nameUsed && not bounded then
+        let newName = "#v" ++ show varCount
+            newTerm = VarTerm (Variable newName)
+            newMapping = insert newName newName mappings
+            newCount = varCount + 1
+        in 
+          (VarRecord newMapping varTrack newCount, newTerm)
+      else if bounded then -- not used but bounded, should not happen
+        (varRecord, VarTerm (Variable "#?"))
+      else --unused and unbounded, no need to change var name
+        (varRecord, term)
+
+replaceVarNameInTerms :: (VarRecord, [Term]) -> (VarRecord, [Term]) -- TODO: fix this
+replaceVarNameInTerms (varRecord, terms) = case terms of
+  [] -> (varRecord, terms)
+  (t:ts) -> 
+    let (record, newTerm) = replaceTerm varRecord t 
+        (newRecord, newTerms) = replaceVarNameInTerms (record, ts)
+    in
+      (newRecord, newTerm : newTerms)
+
+checkVarNameAndUpdate :: ([Char], VarRecord) -> ([Char], VarRecord)
+checkVarNameAndUpdate (oldVarName, varRecord) = 
+  let varTrack = variableTrack varRecord
+      varCount = variableCount varRecord
+      usedNameMappings = nameMappings varRecord
+  in 
+    if oldVarName `member` usedNameMappings then
+      let newName = "#v" ++ show varCount
+          newMappings = insert oldVarName newName usedNameMappings
+      in
+        (newName, VarRecord newMappings varTrack (varCount + 1))
     else
-      term
-
-replaceVarNameInTerms :: HashMap [Char] [Char] -> [Term] -> [Term]
-replaceVarNameInTerms nameMappings = Prelude.map (replaceTerm nameMappings)
-
-checkVarNameAndUpdate :: ([Char], HashMap [Char] [Char], Int) -> ([Char], HashMap [Char] [Char], Int)
-checkVarNameAndUpdate (oldVarName, nameMappings, usedNameCount) = 
-  if oldVarName `member` nameMappings then
-    let newName = "#v" ++ show usedNameCount
-        newMappings = insert oldVarName newName nameMappings
-    in
-      (newName, newMappings, usedNameCount + 1)
-  else
-    let newMapping = insert oldVarName oldVarName nameMappings
-    in
-      (oldVarName, newMapping, usedNameCount + 1)
+      let newMappings = insert oldVarName oldVarName usedNameMappings
+      in
+        (oldVarName, VarRecord newMappings varTrack (varCount + 1))
 
 
-standardize :: (Formula, HashMap [Char] [Char], Int) -> (Formula, HashMap [Char] [Char], Int )
-standardize (formula, nameMappings, usedNameCount) = case formula of 
-  AtomicFormula relation terms -> (AtomicFormula relation (replaceVarNameInTerms nameMappings terms), nameMappings, usedNameCount)
-  NOT subformula -> let (sbf, newMappings, newCount) = standardize (subformula, nameMappings, usedNameCount) in
-    (negateFormula sbf, newMappings, newCount)
-  AND sf0 sf1 -> (AND newsf0 newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) where
-    (newsf0, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0) = standardize (sf0, nameMappings, usedNameCount)
-    (newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) = standardize (sf1, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0)
-  OR sf0 sf1 -> (OR newsf0 newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) where
-    (newsf0, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0) = standardize (sf0, nameMappings, usedNameCount)
-    (newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) = standardize (sf1, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0)
-  QFormula quantifier (Variable varName) subformula -> (newQformula, newMapping, newCount) where
-    (newVarName, mappingAfterEvaluateVarName, countAfterEvaluateVarName) = checkVarNameAndUpdate (varName, nameMappings, usedNameCount)
-    (newSubFormula, newMapping, newCount) = standardize (subformula, mappingAfterEvaluateVarName, countAfterEvaluateVarName)
-    newQformula = QFormula quantifier (Variable newVarName) newSubFormula
+standardize :: (Formula, VarRecord) -> (Formula, VarRecord)
+standardize (formula, varRecord) = let varTrack = variableTrack varRecord in
+  case formula of 
+    AtomicFormula relation terms -> 
+      let (newRecord, newTerms) = replaceVarNameInTerms (varRecord, terms)
+          newFormula = AtomicFormula relation newTerms
+      in (newFormula, newRecord)
+    NOT subformula -> let (sbf, record) = standardize (subformula, varRecord) 
+                          newRecord = VarRecord (nameMappings record) varTrack (variableCount record)
+                      in (negateFormula sbf, newRecord)
+    AND sf0 sf1 -> (AND newsf0 newsf1, newRecord) where
+      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varRecord)
+      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, newRecordAfterStandardizeSf0)
+      newRecord = VarRecord (nameMappings newRecordAfterStandardizeSf1) varTrack (variableCount newRecordAfterStandardizeSf1)
+    OR sf0 sf1 -> (OR newsf0 newsf1, newRecord) where
+      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varRecord)
+      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, newRecordAfterStandardizeSf0)
+      newRecord = VarRecord (nameMappings newRecordAfterStandardizeSf1) varTrack (variableCount newRecordAfterStandardizeSf1)
+    QFormula quantifier (Variable varName) subformula -> (newQformula, newRecord) where
+      (newVarName, record) = checkVarNameAndUpdate (varName, varRecord)
+      intermediateRecord = VarRecord (nameMappings record) (varName : varTrack) (variableCount record)
+      (newSubFormula, newRecord) = standardize (subformula, intermediateRecord)
+      newQformula = QFormula quantifier (Variable newVarName) newSubFormula
