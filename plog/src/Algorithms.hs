@@ -7,7 +7,6 @@ where
 import SigmaSignature
 import Data.HashMap.Strict as HashMap
 import Data.Maybe
-import System.Exit
 ------------------ This part is for CNF conversion
 ------------------
 stripDoubleNot :: Formula -> Formula
