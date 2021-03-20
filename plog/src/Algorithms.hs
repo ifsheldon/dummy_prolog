@@ -54,9 +54,12 @@ data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char],
 emptyVarRecord :: VarRecord
 emptyVarRecord = VarRecord {nameMappings=empty, unboundedVarMappings=empty, variableCount=0}
 
-replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term) -- FIXME: added pattern matching for FuncTerm
+replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term)
 replaceTerm varRecord varTrack term = case term of
   ConstTerm const -> (varRecord,term)
+  FuncTerm function termsInFunc -> (newVarRecord, newTerm) where
+    (newVarRecord, newTermsInFunc) = replaceVarNameInTerms (varRecord, varTrack, termsInFunc)
+    newTerm = FuncTerm function newTermsInFunc
   VarTerm (Variable varName) -> 
     let mappings = nameMappings varRecord
         varCount = variableCount varRecord
