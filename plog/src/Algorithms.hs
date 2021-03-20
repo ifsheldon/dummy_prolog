@@ -79,7 +79,5 @@ standardize (formula, nameMappings, usedNameCount) = case formula of
     (newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) = standardize (sf1, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0)
   QFormula quantifier (Variable varName) subformula -> (newQformula, newMapping, newCount) where
     (newVarName, mappingAfterEvaluateVarName, countAfterEvaluateVarName) = checkVarNameAndUpdate (varName, nameMappings, usedNameCount)
-    (newSubFormula, mappingAfterStandardizeSubformula, countAfterStandardizeSubformula) = standardize (subformula, mappingAfterEvaluateVarName, countAfterEvaluateVarName)
+    (newSubFormula, newMapping, newCount) = standardize (subformula, mappingAfterEvaluateVarName, countAfterEvaluateVarName)
     newQformula = QFormula quantifier (Variable newVarName) newSubFormula
-    newMapping = mappingAfterStandardizeSubformula
-    newCount = countAfterStandardizeSubformula
