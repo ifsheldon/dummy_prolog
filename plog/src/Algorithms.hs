@@ -71,7 +71,7 @@ standardize :: (Formula, HashMap [Char] [Char], Int) -> (Formula, HashMap [Char]
 standardize (formula, nameMappings, usedNameCount) = case formula of 
   AtomicFormula relation terms -> (AtomicFormula relation (replaceVarNameInTerms nameMappings terms), nameMappings, usedNameCount)
   NOT subformula -> let (sbf, newMappings, newCount) = standardize (subformula, nameMappings, usedNameCount) in
-    (NOT sbf, newMappings, newCount)
+    (NOT sbf, newMappings, newCount) -- TODO: check whether need negate or not
   AND sf0 sf1 -> (AND newsf0 newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) where
     (newsf0, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0) = standardize (sf0, nameMappings, usedNameCount)
     (newsf1, nameMappingsAfterStandardizeSf1, usedNameCountAfterStardardizeSf1) = standardize (sf1, nameMappingsAfterStandardizeSf0, usedNameCountAfterStardardizeSf0)
