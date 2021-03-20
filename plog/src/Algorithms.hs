@@ -1,6 +1,7 @@
 module Algorithms
   ( stripArrows,
     negateFormula,
+    standardize
   )
 where
 
@@ -59,7 +60,7 @@ replaceVarNameInTerms nameMappings = Prelude.map (replaceTerm nameMappings)
 checkVarNameAndUpdate :: ([Char], HashMap [Char] [Char], Int) -> ([Char], HashMap [Char] [Char], Int)
 checkVarNameAndUpdate (oldVarName, nameMappings, usedNameCount) = 
   if oldVarName `member` nameMappings then
-    let newName = "v" ++ show usedNameCount
+    let newName = "#v" ++ show usedNameCount
         newMappings = insert oldVarName newName nameMappings
     in
       (newName, newMappings, usedNameCount + 1)
