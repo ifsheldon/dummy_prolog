@@ -46,13 +46,14 @@ stripArrows formula = case formula of
   QFormula quantifier var f -> QFormula quantifier var (stripArrows f)
   _ -> formula
 
-data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char], 
+data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char],
+                            unboundedVarMappings :: HashMap [Char] [Char],
                             variableCount :: Int } deriving (Show)
 
 emptyVarRecord :: VarRecord
-emptyVarRecord = VarRecord {nameMappings=empty, variableCount=0}
+emptyVarRecord = VarRecord {nameMappings=empty, unboundedVarMappings=empty, variableCount=0}
 
-replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term) --FIXME multiple same variable will have problem
+replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term)
 replaceTerm varRecord varTrack term = case term of
   ConstTerm const -> (varRecord,term)
   VarTerm (Variable varName) -> 
@@ -60,18 +61,23 @@ replaceTerm varRecord varTrack term = case term of
         varCount = variableCount varRecord
         bounded = varName `elem` varTrack
         nameUsed = varName `member` mappings
+        uvm = unboundedVarMappings varRecord
     in
       if nameUsed && bounded then
         let mappedName = fromJust (varName `HashMap.lookup` mappings)
           in (varRecord, VarTerm (Variable mappedName))
       else if nameUsed && not bounded then
-        let newName = "#v" ++ show varCount
-            newTerm = VarTerm (Variable newName)
-            intermediateMapping = insert newName newName mappings
-            newMapping = insert varName newName intermediateMapping
-            newCount = varCount + 1
-        in 
-          (VarRecord newMapping newCount, newTerm)
+        if varName `member` uvm then -- encountered a seen unbounded variable
+          let mappedName = fromJust (varName `HashMap.lookup` uvm) in (varRecord, VarTerm (Variable mappedName))
+        else -- encounter a new unbounded variable
+          let newName = "#v" ++ show varCount
+              newTerm = VarTerm (Variable newName)
+              intermediateMapping = insert newName newName mappings
+              newMapping = insert varName newName intermediateMapping
+              newGUVM = insert varName newName uvm
+              newCount = varCount + 1
+          in 
+            (VarRecord newMapping newGUVM newCount, newTerm)
       else if bounded then -- not used but bounded, should not happen
         (varRecord, VarTerm (Variable "#?"))
       else --unused and unbounded, no need to change var name
@@ -95,11 +101,11 @@ checkVarNameAndUpdate (oldVarName, varRecord) =
       let newName = "#v" ++ show varCount
           newMappings = insert oldVarName newName usedNameMappings
       in
-        (newName, VarRecord newMappings (varCount + 1))
+        (newName, VarRecord newMappings (unboundedVarMappings varRecord) (varCount + 1))
     else
       let newMappings = insert oldVarName oldVarName usedNameMappings
       in
-        (oldVarName, VarRecord newMappings (varCount + 1))
+        (oldVarName, VarRecord newMappings (unboundedVarMappings varRecord) (varCount + 1))
 
 
 standardize :: (Formula, [[Char]] ,VarRecord) -> (Formula, VarRecord)
