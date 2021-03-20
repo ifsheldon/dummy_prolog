@@ -48,7 +48,11 @@ validateTerm term = case term of
       arityMatch && _validateTerms True terms
 
 _validateTerms:: Bool -> [Term] -> Bool
-_validateTerms isValidUntilNow terms = isValidUntilNow && _validateTerms (validateTerm t) ts where (t:ts) = terms
+_validateTerms isValidUntilNow terms = 
+  if isValidUntilNow then
+    let (t:ts) = terms in _validateTerms (validateTerm t) ts 
+  else
+    False
 validateTerms = _validateTerms True 
 
 validateFormula :: Formula -> Bool
