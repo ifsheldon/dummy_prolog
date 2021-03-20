@@ -8,7 +8,10 @@ module SigmaSignature
     Quantifier (..),
     validateFormula,
     validateTerm,
-    validateTerms
+    validateTerms,
+    varTermFromName,
+    forallVarFormula,
+    existVarFormula,
   )
 where
 
@@ -61,3 +64,13 @@ validateFormula formula = case formula of
   a `OR` b -> validateFormula a && validateFormula b
   a `IMPLY` b -> validateFormula a && validateFormula b
   a `EQUIV` b -> validateFormula a && validateFormula b
+
+------------helper functions
+varTermFromName :: [Char] -> Term
+varTermFromName name = VarTerm (Variable name)
+
+forallVarFormula :: Variable -> Formula -> Formula
+forallVarFormula = QFormula FORALL
+
+existVarFormula :: Variable -> Formula -> Formula
+existVarFormula = QFormula EXIST
