@@ -62,7 +62,9 @@ checkVarNameAndUpdate (oldVarName, nameMappings, usedNameCount) =
     in
       (newName, newMappings, usedNameCount + 1)
   else
-    (oldVarName, nameMappings, usedNameCount)
+    let newMapping = insert oldVarName oldVarName nameMappings
+    in
+      (oldVarName, newMapping, usedNameCount + 1)
 
 
 standardize :: (Formula, HashMap [Char] [Char], Int) -> (Formula, HashMap [Char] [Char], Int )
