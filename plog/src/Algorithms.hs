@@ -47,18 +47,16 @@ stripArrows formula = case formula of
   _ -> formula
 
 data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char], 
-                            variableTrack :: [[Char]],
                             variableCount :: Int } deriving (Show)
 
 emptyVarRecord :: VarRecord
-emptyVarRecord = VarRecord {nameMappings=empty, variableTrack=[], variableCount=0}
+emptyVarRecord = VarRecord {nameMappings=empty, variableCount=0}
 
-replaceTerm :: VarRecord -> Term -> (VarRecord, Term)
-replaceTerm varRecord term = case term of
+replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term) --FIXME multiple same variable will have problem
+replaceTerm varRecord varTrack term = case term of
   ConstTerm const -> (varRecord,term)
   VarTerm (Variable varName) -> 
     let mappings = nameMappings varRecord
-        varTrack = variableTrack varRecord
         varCount = variableCount varRecord
         bounded = varName `elem` varTrack
         nameUsed = varName `member` mappings
@@ -69,61 +67,57 @@ replaceTerm varRecord term = case term of
       else if nameUsed && not bounded then
         let newName = "#v" ++ show varCount
             newTerm = VarTerm (Variable newName)
-            newMapping = insert newName newName mappings
+            intermediateMapping = insert newName newName mappings
+            newMapping = insert varName newName intermediateMapping
             newCount = varCount + 1
         in 
-          (VarRecord newMapping varTrack newCount, newTerm)
+          (VarRecord newMapping newCount, newTerm)
       else if bounded then -- not used but bounded, should not happen
         (varRecord, VarTerm (Variable "#?"))
       else --unused and unbounded, no need to change var name
         (varRecord, term)
 
-replaceVarNameInTerms :: (VarRecord, [Term]) -> (VarRecord, [Term]) -- TODO: fix this
-replaceVarNameInTerms (varRecord, terms) = case terms of
+replaceVarNameInTerms :: (VarRecord, [[Char]],[Term]) -> (VarRecord, [Term])
+replaceVarNameInTerms (varRecord, varTrack, terms) = case terms of
   [] -> (varRecord, terms)
   (t:ts) -> 
-    let (record, newTerm) = replaceTerm varRecord t 
-        (newRecord, newTerms) = replaceVarNameInTerms (record, ts)
+    let (record, newTerm) = replaceTerm varRecord varTrack t 
+        (newRecord, newTerms) = replaceVarNameInTerms (record, varTrack, ts)
     in
       (newRecord, newTerm : newTerms)
 
 checkVarNameAndUpdate :: ([Char], VarRecord) -> ([Char], VarRecord)
 checkVarNameAndUpdate (oldVarName, varRecord) = 
-  let varTrack = variableTrack varRecord
-      varCount = variableCount varRecord
+  let varCount = variableCount varRecord
       usedNameMappings = nameMappings varRecord
   in 
     if oldVarName `member` usedNameMappings then
       let newName = "#v" ++ show varCount
           newMappings = insert oldVarName newName usedNameMappings
       in
-        (newName, VarRecord newMappings varTrack (varCount + 1))
+        (newName, VarRecord newMappings (varCount + 1))
     else
       let newMappings = insert oldVarName oldVarName usedNameMappings
       in
-        (oldVarName, VarRecord newMappings varTrack (varCount + 1))
+        (oldVarName, VarRecord newMappings (varCount + 1))
 
 
-standardize :: (Formula, VarRecord) -> (Formula, VarRecord)
-standardize (formula, varRecord) = let varTrack = variableTrack varRecord in
+standardize :: (Formula, [[Char]] ,VarRecord) -> (Formula, VarRecord)
+standardize (formula, varTrack ,varRecord) = 
   case formula of 
     AtomicFormula relation terms -> 
-      let (newRecord, newTerms) = replaceVarNameInTerms (varRecord, terms)
+      let (newRecord, newTerms) = replaceVarNameInTerms (varRecord, varTrack ,terms)
           newFormula = AtomicFormula relation newTerms
       in (newFormula, newRecord)
-    NOT subformula -> let (sbf, record) = standardize (subformula, varRecord) 
-                          newRecord = VarRecord (nameMappings record) varTrack (variableCount record)
+    NOT subformula -> let (sbf, newRecord) = standardize (subformula, varTrack ,varRecord) 
                       in (negateFormula sbf, newRecord)
-    AND sf0 sf1 -> (AND newsf0 newsf1, newRecord) where
-      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varRecord)
-      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, newRecordAfterStandardizeSf0)
-      newRecord = VarRecord (nameMappings newRecordAfterStandardizeSf1) varTrack (variableCount newRecordAfterStandardizeSf1)
-    OR sf0 sf1 -> (OR newsf0 newsf1, newRecord) where
-      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varRecord)
-      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, newRecordAfterStandardizeSf0)
-      newRecord = VarRecord (nameMappings newRecordAfterStandardizeSf1) varTrack (variableCount newRecordAfterStandardizeSf1)
+    AND sf0 sf1 -> (AND newsf0 newsf1, newRecordAfterStandardizeSf1) where
+      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varTrack ,varRecord)
+      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
+    OR sf0 sf1 -> (OR newsf0 newsf1, newRecordAfterStandardizeSf1) where
+      (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varTrack ,varRecord)
+      (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
     QFormula quantifier (Variable varName) subformula -> (newQformula, newRecord) where
       (newVarName, record) = checkVarNameAndUpdate (varName, varRecord)
-      intermediateRecord = VarRecord (nameMappings record) (varName : varTrack) (variableCount record)
-      (newSubFormula, newRecord) = standardize (subformula, intermediateRecord)
+      (newSubFormula, newRecord) = standardize (subformula, varName : varTrack, record)
       newQformula = QFormula quantifier (Variable newVarName) newSubFormula
