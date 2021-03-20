@@ -12,13 +12,13 @@ where
 
 data Constant = A | B | C | D | E | F deriving (Show) -- predefined constant symbols
 
-data Variable = Variable [Char] deriving (Show) -- [Char] for variable name
+data Variable = Variable {name_v :: [Char]} deriving (Show) -- [Char] for variable name
 
-data Term = ConstTerm Constant | VarTerm Variable deriving (Show)
+data Term = ConstTerm Constant | VarTerm Variable | FuncTerm Function [Term] deriving (Show)
 
-data Function = Function ([Term] -> Term)
+data Function = Function {name_f :: [Char], arity_f :: Int} deriving (Show)
 
-data Relation = Relation [Char] Int deriving (Show) -- [Char] for relation name, Int for arity
+data Relation = Relation {name_r :: [Char], arity_r :: Int} deriving (Show) -- [Char] for relation name, Int for arity
 
 data Quantifier = EXIST | FORALL deriving (Show)
 
