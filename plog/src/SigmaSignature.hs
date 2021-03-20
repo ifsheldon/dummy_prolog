@@ -7,6 +7,8 @@ module SigmaSignature
     Formula (..),
     Quantifier (..),
     validateFormula,
+    validateTerm,
+    validateTerms
   )
 where
 
@@ -32,13 +34,30 @@ data Formula
   | QFormula Quantifier Variable Formula --NOTICE: need to construct variables first, and reuse variables
   deriving (Show)
 
+validateTerm :: Term -> Bool 
+validateTerm term = case term of 
+  ConstTerm const -> True
+  VarTerm var -> True
+  FuncTerm function terms ->
+    let functionArity = arity_f function
+        arityMatch = length terms == functionArity
+    in
+      arityMatch && _validateTerms True terms
+
+_validateTerms:: Bool -> [Term] -> Bool
+_validateTerms isValidUntilNow terms = isValidUntilNow && _validateTerms (validateTerm t) ts where (t:ts) = terms
+validateTerms = _validateTerms True 
+
 validateFormula :: Formula -> Bool
 validateFormula formula = case formula of
-  QFormula EXIST var f -> True -- TODO
-  QFormula FORALL var f -> True -- TODO
+  AtomicFormula relation terms -> 
+    let relationArity = arity_r relation
+        arityMatch = length terms == relationArity
+    in 
+      arityMatch && validateTerms terms
+  QFormula quantifier var f -> validateFormula f
   NOT f -> validateFormula f
   a `AND` b -> validateFormula a && validateFormula b
   a `OR` b -> validateFormula a && validateFormula b
   a `IMPLY` b -> validateFormula a && validateFormula b
   a `EQUIV` b -> validateFormula a && validateFormula b
-  _ -> True
