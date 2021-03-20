@@ -10,6 +10,7 @@ where
 import SigmaSignature
 import Data.HashMap.Strict as HashMap
 import Data.Maybe
+import Data.List (elemIndex)
 ------------------ This part is for CNF conversion
 ------------------
 stripDoubleNot :: Formula -> Formula
@@ -53,7 +54,7 @@ data VarRecord = VarRecord {nameMappings :: HashMap [Char] [Char],
 emptyVarRecord :: VarRecord
 emptyVarRecord = VarRecord {nameMappings=empty, unboundedVarMappings=empty, variableCount=0}
 
-replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term)
+replaceTerm :: VarRecord ->[[Char]]-> Term -> (VarRecord, Term) -- FIXME: added pattern matching for FuncTerm
 replaceTerm varRecord varTrack term = case term of
   ConstTerm const -> (varRecord,term)
   VarTerm (Variable varName) -> 
@@ -127,3 +128,50 @@ standardize (formula, varTrack ,varRecord) =
       (newVarName, record) = checkVarNameAndUpdate (varName, varRecord)
       (newSubFormula, newRecord) = standardize (subformula, varName : varTrack, record)
       newQformula = QFormula quantifier (Variable newVarName) newSubFormula
+
+
+data QuantifierTrack = QuantifierTrack {
+  seenBoundVarName :: [[Char]],
+  seenQuantifiers :: [Quantifier]
+} deriving (Show)
+
+processVarTerm :: (QuantifierTrack, Int, Term) -> (Int, Term)
+processVarTerm (quantifierTrack, instanceCount, term) = 
+  let (VarTerm (Variable name)) = term
+      seenNames = seenBoundVarName quantifierTrack
+      quantifiers = seenQuantifiers quantifierTrack
+      (nameSeen, nameIdx) = case name `elemIndex` seenNames of 
+        Just n -> (True, n)
+        Nothing -> (False, -1)
+  in 
+    if nameSeen then
+      let quantifier = quantifiers !! nameIdx in 
+        case quantifier of
+          FORALL -> (instanceCount, term)
+          EXIST -> 
+            if nameIdx == 0 then -- meaning it's first
+              (instanceCount + 1, VarTerm (Variable ("#e" ++ show instanceCount)))
+            else
+              (instanceCount, term) -- TODO
+    else -- unbounded variable
+      (instanceCount, term)
+
+
+eliminateExistentialInOneTerm :: (QuantifierTrack, Int, Term) -> (Int, Term)
+eliminateExistentialInOneTerm (quantifierTrack, instanceCount, term) = 
+  case term of 
+    ConstTerm _ -> (instanceCount, term)
+    VarTerm variable -> processVarTerm (quantifierTrack, instanceCount, term)
+    FuncTerm function functionTerms -> (newInstanceCount, FuncTerm function newTerms)
+      where (newTerms, newInstanceCount) = eliminateExistentialInTerms (quantifierTrack, instanceCount, functionTerms)
+
+eliminateExistentialInTerms :: (QuantifierTrack, Int, [Term]) -> ([Term], Int)
+eliminateExistentialInTerms (quantifierTrack, instanceCount, terms) = 
+  case terms of 
+    [] -> ([], instanceCount)
+    (t : ts) -> (terms, instanceCount) --TODO
+
+eliminateExistential :: (Formula, QuantifierTrack, Int) -> (Formula, Int)
+eliminateExistential (formula, quantifierTrack, instanceCount) = 
+  case formula of 
+    AtomicFormula relation terms -> (formula, instanceCount) -- TODO
