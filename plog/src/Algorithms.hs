@@ -53,7 +53,7 @@ replaceTerm mappings term = case term of
       term
 
 replaceVarNameInTerms :: HashMap [Char] [Char] -> [Term] -> [Term]
-replaceVarNameInTerms nameMappings terms = Prelude.map (replaceTerm nameMappings) terms
+replaceVarNameInTerms nameMappings = Prelude.map (replaceTerm nameMappings)
 
 checkVarNameAndUpdate :: ([Char], HashMap [Char] [Char], Int) -> ([Char], HashMap [Char] [Char], Int)
 checkVarNameAndUpdate (oldVarName, nameMappings, usedNameCount) = 
