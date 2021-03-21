@@ -2,8 +2,8 @@ module SigmaSignature
   ( Constant (..),
     Variable (..),
     Term (..),
-    Function(..),
-    Relation(..),
+    Function (..),
+    Relation (..),
     Formula (..),
     Quantifier (..),
     validateFormula,
@@ -30,38 +30,37 @@ data Quantifier = EXIST | FORALL deriving (Show)
 data Formula
   = AtomicFormula Relation [Term]
   | NOT Formula
-  | AND Formula  Formula
-  | OR Formula  Formula
+  | AND Formula Formula
+  | OR Formula Formula
   | IMPLY Formula Formula
   | EQUIV Formula Formula
   | QFormula Quantifier Variable Formula --NOTICE: need to construct variables first, and reuse variables
   deriving (Show)
 
-validateTerm :: Term -> Bool 
-validateTerm term = case term of 
+validateTerm :: Term -> Bool
+validateTerm term = case term of
   ConstTerm const -> True
   VarTerm var -> True
   FuncTerm function terms ->
     let functionArity = arity_f function
         arityMatch = length terms == functionArity
-    in
-      arityMatch && _validateTerms True terms
+     in arityMatch && _validateTerms True terms
 
-_validateTerms:: Bool -> [Term] -> Bool
-_validateTerms isValidUntilNow terms = 
-  if isValidUntilNow then
-    let (t:ts) = terms in _validateTerms (validateTerm t) ts 
-  else
-    False
-validateTerms = _validateTerms True 
+_validateTerms :: Bool -> [Term] -> Bool
+_validateTerms isValidUntilNow terms =
+  if isValidUntilNow
+    then let (t : ts) = terms in _validateTerms (validateTerm t) ts
+    else False
+
+validateTerms :: [Term] -> Bool
+validateTerms = _validateTerms True
 
 validateFormula :: Formula -> Bool
 validateFormula formula = case formula of
-  AtomicFormula relation terms -> 
+  AtomicFormula relation terms ->
     let relationArity = arity_r relation
         arityMatch = length terms == relationArity
-    in 
-      arityMatch && validateTerms terms
+     in arityMatch && validateTerms terms
   QFormula quantifier var f -> validateFormula f
   NOT f -> validateFormula f
   a `AND` b -> validateFormula a && validateFormula b
