@@ -4,7 +4,8 @@ module Algorithms
     _standardize,
     VarRecord (..),
     emptyVarRecord,
-    eliminateExistentialInFormula
+    eliminateExistentialInFormula,
+    moveUniversals
   )
 where
 
@@ -259,3 +260,20 @@ eliminateExistentialInFormula :: Formula -> Formula
 eliminateExistentialInFormula formula = newFormula
   where
     (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, empty)
+
+dropUniversals :: (Formula, [[Char]]) -> (Formula, [[Char]])
+dropUniversals (formula, boundVarTrack) = 
+  case formula of 
+    AtomicFormula relation terms -> (formula, boundVarTrack)
+    NOT f -> dropUniversals (f, boundVarTrack)
+    AND f1 f2 -> (newFormula, newTrack) where
+      (newf1, intermediateTrack) = dropUniversals (f1, boundVarTrack)
+      (newf2, newTrack) = dropUniversals (f2, intermediateTrack)
+      newFormula = AND newf1 newf2
+    OR f1 f2 -> (newFormula, newTrack) where
+      (newf1, intermediateTrack) = dropUniversals (f1, boundVarTrack)
+      (newf2, newTrack) = dropUniversals (f2, intermediateTrack)
+      newFormula = OR newf1 newf2
+    QFormula FORALL (Variable name) f -> (newFormula, newTrack) where
+      track = boundVarTrack ++ [name]
+      (newFormula, newTrack) = dropUniversals (f, track)
