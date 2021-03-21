@@ -146,42 +146,105 @@ data QuantifierTrack = QuantifierTrack
   }
   deriving (Show)
 
-processVarTerm :: (QuantifierTrack, Int, Term) -> (Int, Term)
-processVarTerm (quantifierTrack, instanceCount, term) =
+processVarTerm :: (QuantifierTrack, Int, HashMap [Char] Term, Term) -> (Int, HashMap [Char] Term, Term)
+processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
   let (VarTerm (Variable name)) = term
       seenNames = seenBoundVarName quantifierTrack
       quantifiers = seenQuantifiers quantifierTrack
       (nameSeen, nameIdx) = case name `elemIndex` seenNames of
         Just n -> (True, n)
         Nothing -> (False, -1)
+      nameInExistMappings = name `member` existMappings
    in if nameSeen
         then
           let quantifier = quantifiers !! nameIdx
            in case quantifier of
-                FORALL -> (instanceCount, term)
+                FORALL -> (instanceCount, existMappings, term)
                 EXIST ->
-                  if nameIdx == 0 -- meaning it's first
-                    then (instanceCount + 1, VarTerm (Variable ("#e" ++ show instanceCount)))
-                    else (instanceCount, term) -- TODO
+                  if nameInExistMappings
+                    then (instanceCount, existMappings, fromJust (name `HashMap.lookup` existMappings))
+                    else -- no previous mapping, create one
+
+                      if nameIdx == 0 -- meaning it's first
+                        then
+                          let newVarTerm = VarTerm (Variable ("#e" ++ show instanceCount))
+                              newMappings = insert name newVarTerm existMappings
+                           in (instanceCount + 1, newMappings, newVarTerm)
+                        else
+                          let -- count all FORALLs and their bound variables, then make a new function, put these variables in function terms
+                              seenQuantifiersBeforeExist = take nameIdx quantifiers
+                              seenNamesBeforeExist = take nameIdx seenNames
+                              seenQuantifiersWithNameBeforeExist = zip seenQuantifiersBeforeExist seenNamesBeforeExist
+                              seenForallWithNameBeforeExist =
+                                Prelude.filter
+                                  ( \(q, _) -> case q of
+                                      FORALL -> True
+                                      EXIST -> False
+                                  )
+                                  seenQuantifiersWithNameBeforeExist
+                              seenForallNames = Prelude.map snd seenForallWithNameBeforeExist
+                              functionArity = length seenForallNames
+                              functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
+                              functionName = "#f" ++ show instanceCount
+                              newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
+                              newMappings = insert name newFuncTerm existMappings
+                           in (instanceCount + 1, newMappings, newFuncTerm)
         else -- unbounded variable
-          (instanceCount, term)
+          (instanceCount, existMappings, term)
 
-eliminateExistentialInOneTerm :: (QuantifierTrack, Int, Term) -> (Int, Term)
-eliminateExistentialInOneTerm (quantifierTrack, instanceCount, term) =
+eliminateExistentialInOneTerm :: (QuantifierTrack, Int, HashMap [Char] Term, Term) -> (Int, HashMap [Char] Term, Term)
+eliminateExistentialInOneTerm (quantifierTrack, instanceCount, existMappings, term) =
   case term of
-    ConstTerm _ -> (instanceCount, term)
-    VarTerm variable -> processVarTerm (quantifierTrack, instanceCount, term)
-    FuncTerm function functionTerms -> (newInstanceCount, FuncTerm function newTerms)
+    ConstTerm _ -> (instanceCount, existMappings, term)
+    VarTerm _variable -> processVarTerm (quantifierTrack, instanceCount, existMappings, term)
+    FuncTerm function functionTerms -> (newInstanceCount, newExistMappings, FuncTerm function newTerms)
       where
-        (newTerms, newInstanceCount) = eliminateExistentialInTerms (quantifierTrack, instanceCount, functionTerms)
+        (newTerms, newInstanceCount, newExistMappings) = eliminateExistentialInTerms (quantifierTrack, instanceCount, existMappings, functionTerms)
 
-eliminateExistentialInTerms :: (QuantifierTrack, Int, [Term]) -> ([Term], Int)
-eliminateExistentialInTerms (quantifierTrack, instanceCount, terms) =
+eliminateExistentialInTerms :: (QuantifierTrack, Int, HashMap [Char] Term, [Term]) -> ([Term], Int, HashMap [Char] Term)
+eliminateExistentialInTerms (quantifierTrack, instanceCount, existMappings, terms) =
+  -- OPTIMIZE: use foldl
   case terms of
-    [] -> ([], instanceCount)
-    (t : ts) -> (terms, instanceCount) --TODO
+    [] -> ([], instanceCount, existMappings)
+    (t : ts) -> (newTerms, newCount, newExistMappings)
+      where
+        (intermediateCount, intermediateExistMappings, newTerm) = eliminateExistentialInOneTerm (quantifierTrack, instanceCount, existMappings, t)
+        (newSubTerms, newCount, newExistMappings) = eliminateExistentialInTerms (quantifierTrack, intermediateCount, intermediateExistMappings, ts)
+        newTerms = newTerm : newSubTerms
 
-eliminateExistential :: (Formula, QuantifierTrack, Int) -> (Formula, Int)
-eliminateExistential (formula, quantifierTrack, instanceCount) =
+eliminateExistential :: (Formula, QuantifierTrack, Int, HashMap [Char] Term) -> (Formula, Int, HashMap [Char] Term)
+eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
   case formula of
-    AtomicFormula relation terms -> (formula, instanceCount) -- TODO
+    AtomicFormula relation terms -> (newAtomicFormula, newCount, newExistMappings)
+      where
+        (newTerms, newCount, newExistMappings) = eliminateExistentialInTerms (quantifierTrack, instanceCount, existMappings, terms)
+        newAtomicFormula = AtomicFormula relation newTerms
+    NOT nf -> (newFormula, newCount, newExistMappings)
+      where
+        (f, newCount, newExistMappings) = eliminateExistential (nf, quantifierTrack, instanceCount, existMappings)
+        newFormula = negateFormula f
+    AND f1 f2 -> (newAndFormula, newCount, newExistMappings)
+      where
+        (processedF1, intermediateCount, intermediateExistMappings) = eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
+        (processedF2, newCount, newExistMappings) = eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
+        newAndFormula = AND processedF1 processedF2
+    OR f1 f2 -> (newOrFormula, newCount, newExistMappings)
+      where
+        (processedF1, intermediateCount, intermediateExistMappings) = eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
+        (processedF2, newCount, newExistMappings) = eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
+        newOrFormula = OR processedF1 processedF2
+    QFormula FORALL var subformula -> (newQformula, newCount, newExistMappings)
+      where
+        (Variable varName) = var
+        newSeenBoundNames = seenBoundVarName quantifierTrack ++ [varName]
+        newSeenQuantifiers = seenQuantifiers quantifierTrack ++ [FORALL]
+        newQuantifierTrack = QuantifierTrack newSeenBoundNames newSeenQuantifiers
+        (newSubformula, newCount, newExistMappings) = eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
+        newQformula = QFormula FORALL var newSubformula
+    QFormula EXIST var subformula -> (newFormula, newCount, newExistMappings)
+      where
+        (Variable varName) = var
+        newSeenBoundNames = seenBoundVarName quantifierTrack ++ [varName]
+        newSeenQuantifiers = seenQuantifiers quantifierTrack ++ [EXIST]
+        newQuantifierTrack = QuantifierTrack newSeenBoundNames newSeenQuantifiers
+        (newFormula, newCount, newExistMappings) = eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
