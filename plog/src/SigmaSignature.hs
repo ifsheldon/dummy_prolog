@@ -21,7 +21,12 @@ data Variable = Variable {name_v :: [Char]}
 instance Show Variable where
   show (Variable name) = "Var_"++name
 
-data Term = ConstTerm Constant | VarTerm Variable | FuncTerm Function [Term] deriving (Show)
+data Term = ConstTerm Constant | VarTerm Variable | FuncTerm Function [Term]
+instance Show Term where
+  show t = case t of 
+    ConstTerm const -> show const
+    VarTerm var -> show var
+    FuncTerm f terms -> show f ++"("++show terms++")"
 
 data Function = Function {name_f :: [Char], arity_f :: Int}
 instance Show Function where
@@ -46,10 +51,10 @@ instance Show Formula where
   show formula = case formula of 
     AtomicFormula relation terms -> "Atomic("++ show relation ++ show terms ++ ")"
     NOT f -> "NOT (" ++ show f ++ ")"
-    AND f1 f2 -> "AND (" ++ show f1 ++" "++ show f2 ++ ")"
-    OR f1 f2 -> "OR (" ++ show f1 ++" "++ show f2 ++ ")"
-    IMPLY f1 f2 -> "IMPLY (" ++ show f1 ++" "++ show f2 ++ ")"
-    EQUIV f1 f2 -> "EQUIV (" ++ show f1 ++" "++ show f2 ++ ")"
+    AND f1 f2 -> "AND (" ++ show f1 ++") ("++ show f2 ++ ")"
+    OR f1 f2 -> "OR (" ++ show f1 ++") ("++ show f2 ++ ")"
+    IMPLY f1 f2 -> "IMPLY (" ++ show f1 ++") ("++ show f2 ++ ")"
+    EQUIV f1 f2 -> "EQUIV (" ++ show f1 ++") ("++ show f2 ++ ")"
     QFormula quantifier var f -> show quantifier ++ " {"++ show var ++"} ("++ show f ++ ")"
 
 validateTerm :: Term -> Bool
