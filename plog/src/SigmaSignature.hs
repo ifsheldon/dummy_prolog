@@ -41,7 +41,16 @@ data Formula
   | IMPLY Formula Formula
   | EQUIV Formula Formula
   | QFormula Quantifier Variable Formula --NOTICE: need to construct variables first, and reuse variables
-  deriving (Show)
+
+instance Show Formula where
+  show formula = case formula of 
+    AtomicFormula relation terms -> "Atomic("++ show relation ++ show terms ++ ")"
+    NOT f -> "NOT (" ++ show f ++ ")"
+    AND f1 f2 -> "AND (" ++ show f1 ++" "++ show f2 ++ ")"
+    OR f1 f2 -> "OR (" ++ show f1 ++" "++ show f2 ++ ")"
+    IMPLY f1 f2 -> "IMPLY (" ++ show f1 ++" "++ show f2 ++ ")"
+    EQUIV f1 f2 -> "EQUIV (" ++ show f1 ++" "++ show f2 ++ ")"
+    QFormula quantifier var f -> show quantifier ++ " {"++ show var ++"} ("++ show f ++ ")"
 
 validateTerm :: Term -> Bool
 validateTerm term = case term of
