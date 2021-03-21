@@ -1,7 +1,7 @@
 module Algorithms
   ( stripArrows,
     negateFormula,
-    standardize,
+    _standardize,
     VarRecord (..),
     emptyVarRecord,
     eliminateExistentialInFormula
@@ -117,29 +117,34 @@ checkVarNameAndUpdate (oldVarName, varRecord) =
           let newMappings = insert oldVarName oldVarName usedNameMappings
            in (oldVarName, VarRecord newMappings (unboundedVarMappings varRecord) (varCount + 1))
 
-standardize :: (Formula, [[Char]], VarRecord) -> (Formula, VarRecord)
-standardize (formula, varTrack, varRecord) =
+_standardize :: (Formula, [[Char]], VarRecord) -> (Formula, VarRecord)
+_standardize (formula, varTrack, varRecord) =
   case formula of
     AtomicFormula relation terms ->
       let (newRecord, newTerms) = replaceVarNameInTerms (varRecord, varTrack, terms)
           newFormula = AtomicFormula relation newTerms
        in (newFormula, newRecord)
     NOT subformula ->
-      let (sbf, newRecord) = standardize (subformula, varTrack, varRecord)
+      let (sbf, newRecord) = _standardize (subformula, varTrack, varRecord)
        in (negateFormula sbf, newRecord)
     AND sf0 sf1 -> (AND newsf0 newsf1, newRecordAfterStandardizeSf1)
       where
-        (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varTrack, varRecord)
-        (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
+        (newsf0, newRecordAfterStandardizeSf0) = _standardize (sf0, varTrack, varRecord)
+        (newsf1, newRecordAfterStandardizeSf1) = _standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
     OR sf0 sf1 -> (OR newsf0 newsf1, newRecordAfterStandardizeSf1)
       where
-        (newsf0, newRecordAfterStandardizeSf0) = standardize (sf0, varTrack, varRecord)
-        (newsf1, newRecordAfterStandardizeSf1) = standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
+        (newsf0, newRecordAfterStandardizeSf0) = _standardize (sf0, varTrack, varRecord)
+        (newsf1, newRecordAfterStandardizeSf1) = _standardize (sf1, varTrack, newRecordAfterStandardizeSf0)
     QFormula quantifier (Variable varName) subformula -> (newQformula, newRecord)
       where
         (newVarName, record) = checkVarNameAndUpdate (varName, varRecord)
-        (newSubFormula, newRecord) = standardize (subformula, varName : varTrack, record)
+        (newSubFormula, newRecord) = _standardize (subformula, varName : varTrack, record)
         newQformula = QFormula quantifier (Variable newVarName) newSubFormula
+
+standardize :: Formula -> Formula 
+standardize formula = newFormula
+  where
+    (newFormula, _) = _standardize (formula, [], emptyVarRecord)
 
 data QuantifierTrack = QuantifierTrack
   { seenBoundVarName :: [[Char]],
