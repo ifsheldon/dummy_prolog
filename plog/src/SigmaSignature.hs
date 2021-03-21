@@ -17,13 +17,19 @@ where
 
 data Constant = A | B | C | D | E | F deriving (Show) -- predefined constant symbols
 
-data Variable = Variable {name_v :: [Char]} deriving (Show) -- [Char] for variable name
+data Variable = Variable {name_v :: [Char]}
+instance Show Variable where
+  show (Variable name) = "Var_"++name
 
 data Term = ConstTerm Constant | VarTerm Variable | FuncTerm Function [Term] deriving (Show)
 
-data Function = Function {name_f :: [Char], arity_f :: Int} deriving (Show)
+data Function = Function {name_f :: [Char], arity_f :: Int}
+instance Show Function where
+  show (Function name _arity) = "Function_"++ name
 
-data Relation = Relation {name_r :: [Char], arity_r :: Int} deriving (Show) -- [Char] for relation name, Int for arity
+data Relation = Relation {name_r :: [Char], arity_r :: Int}
+instance Show Relation where 
+  show (Relation name _arity) = "Relation_"++ name
 
 data Quantifier = EXIST | FORALL deriving (Show)
 
