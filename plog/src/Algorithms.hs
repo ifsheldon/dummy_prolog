@@ -171,31 +171,32 @@ processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
                   if nameInExistMappings
                     then (instanceCount, existMappings, fromJust (name `HashMap.lookup` existMappings))
                     else -- no previous mapping, create one
-
-                      if nameIdx == 0 -- meaning it's first
-                        then
+                      let 
+                        seenQuantifiersBeforeExist = take nameIdx quantifiers
+                        seenNamesBeforeExist = take nameIdx seenNames
+                        seenQuantifiersWithNameBeforeExist = zip seenQuantifiersBeforeExist seenNamesBeforeExist
+                        seenForallWithNameBeforeExist =
+                          Prelude.filter
+                            ( \(q, _) -> case q of
+                                FORALL -> True
+                                EXIST -> False
+                            )
+                            seenQuantifiersWithNameBeforeExist
+                        seenForallNames = Prelude.map snd seenForallWithNameBeforeExist
+                        functionArity = length seenForallNames
+                      in
+                        if functionArity == 0 then -- no FORALL dependencies
                           let newExistConstTerm = ConstTerm (ExistConst ("#e" ++ show instanceCount))
                               newMappings = insert name newExistConstTerm existMappings
-                           in (instanceCount + 1, newMappings, newExistConstTerm)
+                          in (instanceCount + 1, newMappings, newExistConstTerm)
                         else
-                          let -- count all FORALLs and their bound variables, then make a new function, put these variables in function terms
-                              seenQuantifiersBeforeExist = take nameIdx quantifiers
-                              seenNamesBeforeExist = take nameIdx seenNames
-                              seenQuantifiersWithNameBeforeExist = zip seenQuantifiersBeforeExist seenNamesBeforeExist
-                              seenForallWithNameBeforeExist =
-                                Prelude.filter
-                                  ( \(q, _) -> case q of
-                                      FORALL -> True
-                                      EXIST -> False
-                                  )
-                                  seenQuantifiersWithNameBeforeExist
-                              seenForallNames = Prelude.map snd seenForallWithNameBeforeExist
-                              functionArity = length seenForallNames
-                              functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
-                              functionName = "#f" ++ show instanceCount
-                              newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
-                              newMappings = insert name newFuncTerm existMappings
-                           in (instanceCount + 1, newMappings, newFuncTerm)
+                          let 
+                            functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
+                            functionName = "#f" ++ show instanceCount
+                            newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
+                            newMappings = insert name newFuncTerm existMappings
+                          in
+                            (instanceCount + 1, newMappings, newFuncTerm)
         else -- unbounded variable
           (instanceCount, existMappings, term)
 
