@@ -60,7 +60,7 @@ emptyVarRecord = VarRecord {nameMappings = empty, unboundedVarMappings = empty, 
 
 replaceTerm :: VarRecord -> [[Char]] -> Term -> (VarRecord, Term)
 replaceTerm varRecord varTrack term = case term of
-  ConstTerm const -> (varRecord, term)
+  ConstTerm _ -> (varRecord, term)
   FuncTerm function termsInFunc -> (newVarRecord, newTerm)
     where
       (newVarRecord, newTermsInFunc) = replaceVarNameInTerms (varRecord, varTrack, termsInFunc)
