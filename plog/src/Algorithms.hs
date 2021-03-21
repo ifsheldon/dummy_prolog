@@ -212,8 +212,8 @@ eliminateExistentialInTerms (quantifierTrack, instanceCount, existMappings, term
         (newSubTerms, newCount, newExistMappings) = eliminateExistentialInTerms (quantifierTrack, intermediateCount, intermediateExistMappings, ts)
         newTerms = newTerm : newSubTerms
 
-eliminateExistential :: (Formula, QuantifierTrack, Int, HashMap [Char] Term) -> (Formula, Int, HashMap [Char] Term)
-eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
+_eliminateExistential :: (Formula, QuantifierTrack, Int, HashMap [Char] Term) -> (Formula, Int, HashMap [Char] Term)
+_eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
   case formula of
     AtomicFormula relation terms -> (newAtomicFormula, newCount, newExistMappings)
       where
@@ -221,17 +221,17 @@ eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
         newAtomicFormula = AtomicFormula relation newTerms
     NOT nf -> (newFormula, newCount, newExistMappings)
       where
-        (f, newCount, newExistMappings) = eliminateExistential (nf, quantifierTrack, instanceCount, existMappings)
+        (f, newCount, newExistMappings) = _eliminateExistential (nf, quantifierTrack, instanceCount, existMappings)
         newFormula = negateFormula f
     AND f1 f2 -> (newAndFormula, newCount, newExistMappings)
       where
-        (processedF1, intermediateCount, intermediateExistMappings) = eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
-        (processedF2, newCount, newExistMappings) = eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
+        (processedF1, intermediateCount, intermediateExistMappings) = _eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
+        (processedF2, newCount, newExistMappings) = _eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
         newAndFormula = AND processedF1 processedF2
     OR f1 f2 -> (newOrFormula, newCount, newExistMappings)
       where
-        (processedF1, intermediateCount, intermediateExistMappings) = eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
-        (processedF2, newCount, newExistMappings) = eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
+        (processedF1, intermediateCount, intermediateExistMappings) = _eliminateExistential (f1, quantifierTrack, instanceCount, existMappings)
+        (processedF2, newCount, newExistMappings) = _eliminateExistential (f2, quantifierTrack, intermediateCount, intermediateExistMappings)
         newOrFormula = OR processedF1 processedF2
     QFormula FORALL var subformula -> (newQformula, newCount, newExistMappings)
       where
@@ -239,7 +239,7 @@ eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
         newSeenBoundNames = seenBoundVarName quantifierTrack ++ [varName]
         newSeenQuantifiers = seenQuantifiers quantifierTrack ++ [FORALL]
         newQuantifierTrack = QuantifierTrack newSeenBoundNames newSeenQuantifiers
-        (newSubformula, newCount, newExistMappings) = eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
+        (newSubformula, newCount, newExistMappings) = _eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
         newQformula = QFormula FORALL var newSubformula
     QFormula EXIST var subformula -> (newFormula, newCount, newExistMappings)
       where
@@ -247,4 +247,9 @@ eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
         newSeenBoundNames = seenBoundVarName quantifierTrack ++ [varName]
         newSeenQuantifiers = seenQuantifiers quantifierTrack ++ [EXIST]
         newQuantifierTrack = QuantifierTrack newSeenBoundNames newSeenQuantifiers
-        (newFormula, newCount, newExistMappings) = eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
+        (newFormula, newCount, newExistMappings) = _eliminateExistential (subformula, newQuantifierTrack, instanceCount, existMappings)
+
+eliminateExistentialInFormula :: Formula -> Formula
+eliminateExistentialInFormula formula = newFormula
+  where
+    (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, empty)
