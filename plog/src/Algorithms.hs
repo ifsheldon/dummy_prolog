@@ -5,7 +5,8 @@ module Algorithms
     VarRecord (..),
     emptyVarRecord,
     eliminateExistentialInFormula,
-    dropUniversals
+    dropUniversals,
+    distributeANDOR
   )
 where
 
@@ -270,3 +271,22 @@ dropUniversals formula =
     AND f1 f2 -> AND (dropUniversals f1) (dropUniversals f2)
     OR f1 f2 -> OR (dropUniversals f1) (dropUniversals f2)
     QFormula FORALL _var f -> dropUniversals f
+
+distributeANDOR :: Formula -> Formula 
+distributeANDOR formula = case formula of 
+  AtomicFormula _relation _terms -> formula
+  NOT f -> formula -- since all NOTs have been pushed to inner-most
+  AND f1 f2 -> AND (distributeANDOR f1) (distributeANDOR f2)
+  OR f1 f2 -> 
+    case f1 of 
+      -- (f1s1 and f1s2) or f2
+      AND f1s1 f1s2 -> AND (distributeANDOR(OR df1s1 df2)) (distributeANDOR(OR df1s2 df2))
+        where df1s1 = distributeANDOR f1s1
+              df1s2 = distributeANDOR f1s2
+              df2 = distributeANDOR f2
+      _ -> case f2 of -- case 1: (f1s1 or f1s2) or f2, case 2: f1(atomic) or f2, case 3: NOT subf1 or f2
+            AND f2s1 f2s2 -> AND (distributeANDOR(OR df1 df2s1)) (distributeANDOR(OR df1 df2s2)) -- f1 or (f2s1 and f2s2)
+              where df1 = distributeANDOR f1
+                    df2s1 = distributeANDOR f2s1
+                    df2s2 = distributeANDOR f2s2
+            _ -> formula -- case 1: f1 or (f2s1 or f2s2), case 2: f1 or f2(atomic)
