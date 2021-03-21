@@ -6,7 +6,8 @@ module Algorithms
     emptyVarRecord,
     eliminateExistentialInFormula,
     dropUniversals,
-    distributeANDOR
+    distributeANDOR,
+    naiveRemoveDuplicate
   )
 where
 
@@ -290,3 +291,16 @@ distributeANDOR formula = case formula of
                     df2s1 = distributeANDOR f2s1
                     df2s2 = distributeANDOR f2s2
             _ -> formula -- case 1: f1 or (f2s1 or f2s2), case 2: f1 or f2(atomic)
+
+naiveRemoveDuplicate :: Formula -> Formula 
+naiveRemoveDuplicate formula = case formula of 
+  AtomicFormula _relation _terms -> formula
+  NOT f -> formula -- since NOTs have been push to atomic formulas
+  AND f1 f2 -> if f1 == f2 
+    then naiveRemoveDuplicate f1
+    else
+      AND (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
+  OR f1 f2 -> if f1 == f2 
+    then naiveRemoveDuplicate f1
+    else
+      OR (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
