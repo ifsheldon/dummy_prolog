@@ -19,4 +19,7 @@ main = do
     -- print (nf)
     print standardizeFormula
     -- print _varRecord
-    print (eliminateExistentialInFormula standardizeFormula)
+    let eliminatedFormula = eliminateExistentialInFormula standardizeFormula
+    print eliminatedFormula
+    let noUniversalFormula = dropUniversals eliminatedFormula
+    print noUniversalFormula
