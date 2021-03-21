@@ -19,3 +19,4 @@ main = do
     -- print (nf)
     print standardizeFormula
     print _varRecord
+    print (eliminateExistentialInFormula standardizeFormula)

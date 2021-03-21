@@ -4,6 +4,7 @@ module Algorithms
     standardize,
     VarRecord (..),
     emptyVarRecord,
+    eliminateExistentialInFormula
   )
 where
 
