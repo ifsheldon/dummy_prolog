@@ -70,7 +70,7 @@ validateFormula formula = case formula of
 
 ------------helper functions
 varTermFromName :: [Char] -> Term
-varTermFromName name = VarTerm (Variable name)
+varTermFromName = VarTerm . Variable
 
 forallVarFormula :: Variable -> Formula -> Formula
 forallVarFormula = QFormula FORALL
