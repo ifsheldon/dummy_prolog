@@ -262,19 +262,11 @@ eliminateExistentialInFormula formula = newFormula
   where
     (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, empty)
 
-dropUniversals :: (Formula, [[Char]]) -> (Formula, [[Char]])
-dropUniversals (formula, boundVarTrack) = 
+dropUniversals :: Formula -> Formula
+dropUniversals formula = 
   case formula of 
-    AtomicFormula relation terms -> (formula, boundVarTrack)
-    NOT f -> dropUniversals (f, boundVarTrack)
-    AND f1 f2 -> (newFormula, newTrack) where
-      (newf1, intermediateTrack) = dropUniversals (f1, boundVarTrack)
-      (newf2, newTrack) = dropUniversals (f2, intermediateTrack)
-      newFormula = AND newf1 newf2
-    OR f1 f2 -> (newFormula, newTrack) where
-      (newf1, intermediateTrack) = dropUniversals (f1, boundVarTrack)
-      (newf2, newTrack) = dropUniversals (f2, intermediateTrack)
-      newFormula = OR newf1 newf2
-    QFormula FORALL (Variable name) f -> (newFormula, newTrack) where
-      track = boundVarTrack ++ [name]
-      (newFormula, newTrack) = dropUniversals (f, track)
+    AtomicFormula relation terms -> formula
+    NOT f -> negateFormula (dropUniversals f)
+    AND f1 f2 -> AND (dropUniversals f1) (dropUniversals f2)
+    OR f1 f2 -> OR (dropUniversals f1) (dropUniversals f2)
+    QFormula FORALL _var f -> dropUniversals f
