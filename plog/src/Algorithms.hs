@@ -5,7 +5,7 @@ module Algorithms
     VarRecord (..),
     emptyVarRecord,
     eliminateExistentialInFormula,
-    moveUniversals
+    dropUniversals
   )
 where
 
@@ -174,9 +174,9 @@ processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
 
                       if nameIdx == 0 -- meaning it's first
                         then
-                          let newVarTerm = VarTerm (Variable ("#e" ++ show instanceCount))
-                              newMappings = insert name newVarTerm existMappings
-                           in (instanceCount + 1, newMappings, newVarTerm)
+                          let newExistConstTerm = ConstTerm (ExistConst ("#e" ++ show instanceCount))
+                              newMappings = insert name newExistConstTerm existMappings
+                           in (instanceCount + 1, newMappings, newExistConstTerm)
                         else
                           let -- count all FORALLs and their bound variables, then make a new function, put these variables in function terms
                               seenQuantifiersBeforeExist = take nameIdx quantifiers

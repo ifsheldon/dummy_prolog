@@ -15,7 +15,7 @@ module SigmaSignature
   )
 where
 
-data Constant = A | B | C | D | E | F deriving (Show) -- predefined constant symbols
+data Constant = A | B | C | D | E | F | ExistConst [Char] deriving (Show) -- predefined constant symbols
 
 data Variable = Variable {name_v :: [Char]}
 instance Show Variable where
