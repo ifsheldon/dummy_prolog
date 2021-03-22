@@ -15,14 +15,25 @@ module SigmaSignature
   )
 where
 
+import Data.Hashable
+
 data Constant = A | B | C | D | E | F | ExistConst [Char] deriving (Show, Eq) -- predefined constant symbols
+
+instance Hashable Constant where
+  hashWithSalt salt const = hashWithSalt salt (show const)
 
 data Variable = Variable {name_v :: [Char]} deriving (Eq)
 
 instance Show Variable where
   show (Variable name) = "Var_" ++ name
 
+instance Hashable Variable where
+  hashWithSalt salt var = hashWithSalt salt (show var)
+
 data Term = ConstTerm Constant | VarTerm Variable | FuncTerm Function [Term] deriving (Eq)
+
+instance Hashable Term where
+  hashWithSalt salt term = hashWithSalt salt (show term)
 
 instance Show Term where
   show t = case t of
@@ -32,10 +43,16 @@ instance Show Term where
 
 data Function = Function {name_f :: [Char], arity_f :: Int} deriving (Eq)
 
+instance Hashable Function where
+  hashWithSalt salt function = hashWithSalt salt (show function)
+
 instance Show Function where
   show (Function name _arity) = "Function_" ++ name
 
 data Relation = Relation {name_r :: [Char], arity_r :: Int} deriving (Eq)
+
+instance Hashable Relation where
+  hashWithSalt salt relation = hashWithSalt salt (show relation)
 
 instance Show Relation where
   show (Relation name _arity) = "Relation_" ++ name
