@@ -5,11 +5,19 @@ module Literals
   )
 where
 
+import qualified Data.HashSet as HashSet
+import Data.Hashable
 import SigmaSignature
 
-data Literal = Literal Formula
+data Literal = Literal Formula deriving (Eq, Show)
 
-data Clause = Clause [Literal]
+instance Hashable Literal where
+  hashWithSalt salt literal = hashWithSalt salt (show formula) where (Literal formula) = literal
+
+data Clause = Clause [Literal] deriving (Eq, Show)
+
+instance Hashable Clause where
+  hashWithSalt salt clause = sum (map (hashWithSalt salt) literals) where (Clause literals) = clause
 
 cutFormulaByAND :: Formula -> [Formula]
 cutFormulaByAND formula =
@@ -26,5 +34,12 @@ cutFormulaByOR formula =
 genClauseFromPreprocessedFormula :: Formula -> Clause
 genClauseFromPreprocessedFormula = Clause . map Literal . cutFormulaByOR
 
+removeDuplicates :: [Clause] -> [Clause]
+removeDuplicates clauses =
+  let listsOfLiterals = map (\(Clause literals) -> literals) clauses
+      listsOfDistinctLiterals = map (HashSet.toList . HashSet.fromList) listsOfLiterals
+      newClauses = (HashSet.toList . HashSet.fromList . map Clause) listsOfDistinctLiterals
+   in newClauses
+
 fromCNFFormulaToClauses :: Formula -> [Clause]
-fromCNFFormulaToClauses = map genClauseFromPreprocessedFormula . cutFormulaByAND
+fromCNFFormulaToClauses = removeDuplicates. map genClauseFromPreprocessedFormula . cutFormulaByAND
