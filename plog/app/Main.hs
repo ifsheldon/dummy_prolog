@@ -4,6 +4,7 @@ import Algorithms
 import Data.HashMap.Strict as HashMap
 import Lib
 import SigmaSignature
+import Literals
 
 main = do
   let v0 = Variable "v0"
@@ -39,7 +40,10 @@ main = do
   print ("After dropping universals: " ++ show noUniversalFormula)
   let distributedFormula = distributeANDOR noUniversalFormula
   print distributedFormula
-  print (naiveRemoveDuplicate distributedFormula)
+  let processedFormula = naiveRemoveDuplicate distributedFormula
+  print processedFormula
+  let clauses = fromCNFFormulaToClauses processedFormula
+  print clauses
 
 -- print "\n Testing distribute AND OR----------"
 -- let formulaA = AtomicFormula p [ConstTerm A]
