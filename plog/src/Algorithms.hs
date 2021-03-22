@@ -7,7 +7,7 @@ module Algorithms
     eliminateExistentialInFormula,
     dropUniversals,
     distributeANDOR,
-    naiveRemoveDuplicate
+    naiveRemoveDuplicate,
   )
 where
 
@@ -144,7 +144,7 @@ _standardize (formula, varTrack, varRecord) =
         (newSubFormula, newRecord) = _standardize (subformula, varName : varTrack, record)
         newQformula = QFormula quantifier (Variable newVarName) newSubFormula
 
-standardize :: Formula -> Formula 
+standardize :: Formula -> Formula
 standardize formula = newFormula
   where
     (newFormula, _) = _standardize (formula, [], emptyVarRecord)
@@ -173,32 +173,30 @@ processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
                   if nameInExistMappings
                     then (instanceCount, existMappings, fromJust (name `HashMap.lookup` existMappings))
                     else -- no previous mapping, create one
-                      let 
-                        seenQuantifiersBeforeExist = take nameIdx quantifiers
-                        seenNamesBeforeExist = take nameIdx seenNames
-                        seenQuantifiersWithNameBeforeExist = zip seenQuantifiersBeforeExist seenNamesBeforeExist
-                        seenForallWithNameBeforeExist =
-                          Prelude.filter
-                            ( \(q, _) -> case q of
-                                FORALL -> True
-                                EXIST -> False
-                            )
-                            seenQuantifiersWithNameBeforeExist
-                        seenForallNames = Prelude.map snd seenForallWithNameBeforeExist
-                        functionArity = length seenForallNames
-                      in
-                        if functionArity == 0 then -- no FORALL dependencies
-                          let newExistConstTerm = ConstTerm (ExistConst ("#e" ++ show instanceCount))
-                              newMappings = insert name newExistConstTerm existMappings
-                          in (instanceCount + 1, newMappings, newExistConstTerm)
-                        else
-                          let 
-                            functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
-                            functionName = "#f" ++ show instanceCount
-                            newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
-                            newMappings = insert name newFuncTerm existMappings
-                          in
-                            (instanceCount + 1, newMappings, newFuncTerm)
+
+                      let seenQuantifiersBeforeExist = take nameIdx quantifiers
+                          seenNamesBeforeExist = take nameIdx seenNames
+                          seenQuantifiersWithNameBeforeExist = zip seenQuantifiersBeforeExist seenNamesBeforeExist
+                          seenForallWithNameBeforeExist =
+                            Prelude.filter
+                              ( \(q, _) -> case q of
+                                  FORALL -> True
+                                  EXIST -> False
+                              )
+                              seenQuantifiersWithNameBeforeExist
+                          seenForallNames = Prelude.map snd seenForallWithNameBeforeExist
+                          functionArity = length seenForallNames
+                       in if functionArity == 0 -- no FORALL dependencies
+                            then
+                              let newExistConstTerm = ConstTerm (ExistConst ("#e" ++ show instanceCount))
+                                  newMappings = insert name newExistConstTerm existMappings
+                               in (instanceCount + 1, newMappings, newExistConstTerm)
+                            else
+                              let functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
+                                  functionName = "#f" ++ show instanceCount
+                                  newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
+                                  newMappings = insert name newFuncTerm existMappings
+                               in (instanceCount + 1, newMappings, newFuncTerm)
         else -- unbounded variable
           (instanceCount, existMappings, term)
 
@@ -265,42 +263,44 @@ eliminateExistentialInFormula formula = newFormula
     (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, empty)
 
 dropUniversals :: Formula -> Formula
-dropUniversals formula = 
-  case formula of 
+dropUniversals formula =
+  case formula of
     AtomicFormula relation terms -> formula
     NOT f -> negateFormula (dropUniversals f)
     AND f1 f2 -> AND (dropUniversals f1) (dropUniversals f2)
     OR f1 f2 -> OR (dropUniversals f1) (dropUniversals f2)
     QFormula FORALL _var f -> dropUniversals f
 
-distributeANDOR :: Formula -> Formula 
-distributeANDOR formula = case formula of 
+distributeANDOR :: Formula -> Formula
+distributeANDOR formula = case formula of
   AtomicFormula _relation _terms -> formula
   NOT f -> formula -- since all NOTs have been pushed to inner-most
   AND f1 f2 -> AND (distributeANDOR f1) (distributeANDOR f2)
-  OR f1 f2 -> 
-    case f1 of 
+  OR f1 f2 ->
+    case f1 of
       -- (f1s1 and f1s2) or f2
-      AND f1s1 f1s2 -> AND (distributeANDOR(OR df1s1 df2)) (distributeANDOR(OR df1s2 df2))
-        where df1s1 = distributeANDOR f1s1
-              df1s2 = distributeANDOR f1s2
-              df2 = distributeANDOR f2
+      AND f1s1 f1s2 -> AND (distributeANDOR (OR df1s1 df2)) (distributeANDOR (OR df1s2 df2))
+        where
+          df1s1 = distributeANDOR f1s1
+          df1s2 = distributeANDOR f1s2
+          df2 = distributeANDOR f2
       _ -> case f2 of -- case 1: (f1s1 or f1s2) or f2, case 2: f1(atomic) or f2, case 3: NOT subf1 or f2
-            AND f2s1 f2s2 -> AND (distributeANDOR(OR df1 df2s1)) (distributeANDOR(OR df1 df2s2)) -- f1 or (f2s1 and f2s2)
-              where df1 = distributeANDOR f1
-                    df2s1 = distributeANDOR f2s1
-                    df2s2 = distributeANDOR f2s2
-            _ -> formula -- case 1: f1 or (f2s1 or f2s2), case 2: f1 or f2(atomic)
+        AND f2s1 f2s2 -> AND (distributeANDOR (OR df1 df2s1)) (distributeANDOR (OR df1 df2s2)) -- f1 or (f2s1 and f2s2)
+          where
+            df1 = distributeANDOR f1
+            df2s1 = distributeANDOR f2s1
+            df2s2 = distributeANDOR f2s2
+        _ -> formula -- case 1: f1 or (f2s1 or f2s2), case 2: f1 or f2(atomic)
 
-naiveRemoveDuplicate :: Formula -> Formula 
-naiveRemoveDuplicate formula = case formula of 
+naiveRemoveDuplicate :: Formula -> Formula
+naiveRemoveDuplicate formula = case formula of
   AtomicFormula _relation _terms -> formula
   NOT f -> formula -- since NOTs have been push to atomic formulas
-  AND f1 f2 -> if f1 == f2 
-    then naiveRemoveDuplicate f1
-    else
-      AND (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
-  OR f1 f2 -> if f1 == f2 
-    then naiveRemoveDuplicate f1
-    else
-      OR (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
+  AND f1 f2 ->
+    if f1 == f2
+      then naiveRemoveDuplicate f1
+      else AND (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
+  OR f1 f2 ->
+    if f1 == f2
+      then naiveRemoveDuplicate f1
+      else OR (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
