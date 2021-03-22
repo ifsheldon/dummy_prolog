@@ -9,9 +9,9 @@ module SigmaSignature
     validateFormula,
     validateTerm,
     validateTerms,
-    varTermFromName,
-    forallVarFormula,
-    existVarFormula,
+    var,
+    forall,
+    exist,
   )
 where
 
@@ -104,11 +104,11 @@ validateFormula formula = case formula of
   a `EQUIV` b -> validateFormula a && validateFormula b
 
 ------------helper functions
-varTermFromName :: [Char] -> Term
-varTermFromName = VarTerm . Variable
+var :: [Char] -> Term
+var = VarTerm . Variable
 
-forallVarFormula :: Variable -> Formula -> Formula
-forallVarFormula = QFormula FORALL
+forall :: Variable -> Formula -> Formula
+forall = QFormula FORALL
 
-existVarFormula :: Variable -> Formula -> Formula
-existVarFormula = QFormula EXIST
+exist :: Variable -> Formula -> Formula
+exist = QFormula EXIST
