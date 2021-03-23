@@ -42,4 +42,4 @@ removeDuplicates clauses =
    in newClauses
 
 fromCNFFormulaToClauses :: Formula -> [Clause]
-fromCNFFormulaToClauses = removeDuplicates. map genClauseFromPreprocessedFormula . cutFormulaByAND
+fromCNFFormulaToClauses = removeDuplicates . map genClauseFromPreprocessedFormula . cutFormulaByAND

@@ -9,15 +9,15 @@ module Algorithms
     distributeANDOR,
     naiveRemoveDuplicate,
     findMGU,
-    Substitution(..)
+    Substitution (..),
   )
 where
 
 import Data.HashMap.Strict as HashMap
 import Data.List (elemIndex)
 import Data.Maybe
-import SigmaSignature
 import Literals
+import SigmaSignature
 
 ------------------ This part is for CNF conversion
 ------------------
@@ -308,103 +308,99 @@ naiveRemoveDuplicate formula = case formula of
       then naiveRemoveDuplicate f1
       else OR (naiveRemoveDuplicate f1) (naiveRemoveDuplicate f2)
 
-
 ------------------ This part is for MGU
 ------------------
 data Substitution = Term `BY` Term deriving (Show, Eq)
-data Disagreement = NONE | NONUNIFIABLE | UNIFIABLE {replacee::Term, replacement:: Term}
+
+data Disagreement = NONE | NONUNIFIABLE | UNIFIABLE {replacee :: Term, replacement :: Term}
 
 _stripNOT :: Formula -> Formula
-_stripNOT literalFormula = 
-  case literalFormula of 
+_stripNOT literalFormula =
+  case literalFormula of
     NOT f -> f
     _ -> literalFormula
 
 _getVarInTerms :: [Term] -> [Variable] -> [Variable]
-_getVarInTerms terms varlist = 
-  case terms of 
+_getVarInTerms terms varlist =
+  case terms of
     [] -> varlist
-    (t : ts) -> 
-      case t of 
+    (t : ts) ->
+      case t of
         ConstTerm _ -> varlist
         VarTerm var -> var : varlist
-        FuncTerm _ funcTerms -> newVarList where
-          intermediateVarList = _getVarInTerms funcTerms varlist
-          newVarList = _getVarInTerms ts intermediateVarList
+        FuncTerm _ funcTerms -> newVarList
+          where
+            intermediateVarList = _getVarInTerms funcTerms varlist
+            newVarList = _getVarInTerms ts intermediateVarList
 
-findDisagreementInTerms :: [Term]-> [Term] -> Disagreement
-findDisagreementInTerms ts1 ts2 = 
+findDisagreementInTerms :: [Term] -> [Term] -> Disagreement
+findDisagreementInTerms ts1 ts2 =
   let termPairs = zip ts1 ts2
-  in
-    case termPairs of 
-      [] -> NONE
-      (tp : tps) -> 
-        case tp of
-          (ConstTerm t1, ConstTerm t2) -> if t1 == t2 then NONE else NONUNIFIABLE --ignoring the case (concrete const, existential const)
-          (ConstTerm t1, VarTerm t2) -> UNIFIABLE (snd tp) (fst tp)
-          (ConstTerm _, FuncTerm _ _) -> NONUNIFIABLE
-          (VarTerm t1, ConstTerm t2) -> uncurry UNIFIABLE tp
-          (VarTerm t1, VarTerm t2) -> if t1 == t2 then NONE else uncurry UNIFIABLE tp
-          (VarTerm t1, FuncTerm _ funcTerms) -> 
-            if t1 `elem` varsInFuncTerms then NONUNIFIABLE else uncurry UNIFIABLE tp
-              where varsInFuncTerms = _getVarInTerms funcTerms []
-          (FuncTerm _ _, ConstTerm _) -> NONUNIFIABLE
-          (FuncTerm _ funcTerms, VarTerm t2) ->
-            if t2 `elem` varsInFuncTerms then NONUNIFIABLE else UNIFIABLE (snd tp) (fst tp)
-              where varsInFuncTerms = _getVarInTerms funcTerms []
-          (FuncTerm f1 fts1, FuncTerm f2 fts2) ->
-            if f1 == f2 then
-              findDisagreementInTerms fts1 fts2
-            else
-              NONUNIFIABLE
+   in case termPairs of
+        [] -> NONE
+        (tp : tps) ->
+          case tp of
+            (ConstTerm t1, ConstTerm t2) -> if t1 == t2 then NONE else NONUNIFIABLE --ignoring the case (concrete const, existential const)
+            (ConstTerm t1, VarTerm t2) -> UNIFIABLE (snd tp) (fst tp)
+            (ConstTerm _, FuncTerm _ _) -> NONUNIFIABLE
+            (VarTerm t1, ConstTerm t2) -> uncurry UNIFIABLE tp
+            (VarTerm t1, VarTerm t2) -> if t1 == t2 then NONE else uncurry UNIFIABLE tp
+            (VarTerm t1, FuncTerm _ funcTerms) ->
+              if t1 `elem` varsInFuncTerms then NONUNIFIABLE else uncurry UNIFIABLE tp
+              where
+                varsInFuncTerms = _getVarInTerms funcTerms []
+            (FuncTerm _ _, ConstTerm _) -> NONUNIFIABLE
+            (FuncTerm _ funcTerms, VarTerm t2) ->
+              if t2 `elem` varsInFuncTerms then NONUNIFIABLE else UNIFIABLE (snd tp) (fst tp)
+              where
+                varsInFuncTerms = _getVarInTerms funcTerms []
+            (FuncTerm f1 fts1, FuncTerm f2 fts2) ->
+              if f1 == f2
+                then findDisagreementInTerms fts1 fts2
+                else NONUNIFIABLE
 
 findOneDisagreement :: Literal -> Literal -> Disagreement
-findOneDisagreement l1 l2 = 
+findOneDisagreement l1 l2 =
   let (Literal lf1, Literal lf2) = (l1, l2) -- literal formulas
       (af1, af2) = (_stripNOT lf1, _stripNOT lf2) -- atomic formulas
       (AtomicFormula r1 terms1, AtomicFormula r2 terms2) = (af1, af2)
-  in 
-    if r1 == r2 then findDisagreementInTerms terms1 terms2 else NONUNIFIABLE
+   in if r1 == r2 then findDisagreementInTerms terms1 terms2 else NONUNIFIABLE
 
-applySubstitutionOnOneTerm :: Substitution-> Term -> Term
-applySubstitutionOnOneTerm sub term = 
+applySubstitutionOnOneTerm :: Substitution -> Term -> Term
+applySubstitutionOnOneTerm sub term =
   case term of
     FuncTerm f termsInFunc -> FuncTerm f (applySubstitutionOnTerms sub termsInFunc)
     _ -> if term == t0 then t1 else t0 where (t0 `BY` t1) = sub
-        
+
 applySubstitutionOnTerms :: Substitution -> [Term] -> [Term]
 applySubstitutionOnTerms sub = Prelude.map (applySubstitutionOnOneTerm sub)
 
-applySubstitutionOnLiteral :: Substitution -> Literal  -> Literal
-applySubstitutionOnLiteral sub literal = 
-  let
-    (Literal literalFormula) = literal
-    simplifiedAF = _stripNOT literalFormula
-    (AtomicFormula _relation terms) = simplifiedAF
-    transformedTerms = applySubstitutionOnTerms sub terms
-  in
-    case literalFormula of
-      (NOT (AtomicFormula r terms)) -> Literal (NOT (AtomicFormula r transformedTerms))
-      (AtomicFormula r terms) -> Literal (AtomicFormula r transformedTerms)
-
+applySubstitutionOnLiteral :: Substitution -> Literal -> Literal
+applySubstitutionOnLiteral sub literal =
+  let (Literal literalFormula) = literal
+      simplifiedAF = _stripNOT literalFormula
+      (AtomicFormula _relation terms) = simplifiedAF
+      transformedTerms = applySubstitutionOnTerms sub terms
+   in case literalFormula of
+        (NOT (AtomicFormula r terms)) -> Literal (NOT (AtomicFormula r transformedTerms))
+        (AtomicFormula r terms) -> Literal (AtomicFormula r transformedTerms)
 
 findMGU :: (Literal, Literal, Maybe [Substitution]) -> (Literal, Literal, Maybe [Substitution])
-findMGU (l1, l2, substitutions) = 
+findMGU (l1, l2, substitutions) =
   let disagreement = findOneDisagreement l1 l2
-      (finished, unifiable) = case disagreement of 
+      (finished, unifiable) = case disagreement of
         NONE -> (True, True)
         NONUNIFIABLE -> (True, False)
         UNIFIABLE _ _ -> (False, True)
-  in
-    if finished && unifiable then
-      (l1, l2, substitutions)
-    else if finished && not unifiable then
-      (l1, l2, Nothing)
-    else
-      let sub = replacee disagreement `BY` replacement disagreement
-          newSubstitutions = case substitutions of
-            Nothing -> Just [sub]
-            Just subs -> Just (subs ++ [sub])
-          (newl1, newl2) = (applySubstitutionOnLiteral sub l1, applySubstitutionOnLiteral sub l2)
-      in
-        findMGU (newl1, newl2, newSubstitutions)
+   in if finished && unifiable
+        then (l1, l2, substitutions)
+        else
+          if finished && not unifiable
+            then (l1, l2, Nothing)
+            else
+              let sub = replacee disagreement `BY` replacement disagreement
+                  newSubstitutions = case substitutions of
+                    Nothing -> Just [sub]
+                    Just subs -> Just (subs ++ [sub])
+                  (newl1, newl2) = (applySubstitutionOnLiteral sub l1, applySubstitutionOnLiteral sub l2)
+               in findMGU (newl1, newl2, newSubstitutions)
