@@ -22,6 +22,8 @@ import Data.List (elemIndex)
 import Data.Maybe
 import Literals
 import SigmaSignature
+import Data.HashSet as HashSet
+import Data.Hashable
 
 ------------------ This part is for CNF conversion
 ------------------
@@ -67,7 +69,7 @@ data VarRecord = VarRecord
   deriving (Show)
 
 emptyVarRecord :: VarRecord
-emptyVarRecord = VarRecord {nameMappings = empty, unboundedVarMappings = empty, variableCount = 0}
+emptyVarRecord = VarRecord {nameMappings = HashMap.empty, unboundedVarMappings = HashMap.empty, variableCount = 0}
 
 replaceTerm :: VarRecord -> [[Char]] -> Term -> (VarRecord, Term)
 replaceTerm varRecord varTrack term = case term of
@@ -80,7 +82,7 @@ replaceTerm varRecord varTrack term = case term of
     let mappings = nameMappings varRecord
         varCount = variableCount varRecord
         bounded = varName `elem` varTrack
-        nameUsed = varName `member` mappings
+        nameUsed = varName `HashMap.member` mappings
         uvm = unboundedVarMappings varRecord
      in if nameUsed && bounded
           then
@@ -89,15 +91,15 @@ replaceTerm varRecord varTrack term = case term of
           else
             if nameUsed && not bounded
               then
-                if varName `member` uvm -- encountered a seen unbounded variable
+                if varName `HashMap.member` uvm -- encountered a seen unbounded variable
                   then let mappedName = fromJust (varName `HashMap.lookup` uvm) in (varRecord, VarTerm (Variable mappedName))
                   else -- encounter a new unbounded variable
 
                     let newName = "#v" ++ show varCount
                         newTerm = VarTerm (Variable newName)
-                        intermediateMapping = insert newName newName mappings
-                        newMapping = insert varName newName intermediateMapping
-                        newGUVM = insert varName newName uvm
+                        intermediateMapping = HashMap.insert newName newName mappings
+                        newMapping = HashMap.insert varName newName intermediateMapping
+                        newGUVM = HashMap.insert varName newName uvm
                         newCount = varCount + 1
                      in (VarRecord newMapping newGUVM newCount, newTerm)
               else
@@ -118,13 +120,13 @@ checkVarNameAndUpdate :: ([Char], VarRecord) -> ([Char], VarRecord)
 checkVarNameAndUpdate (oldVarName, varRecord) =
   let varCount = variableCount varRecord
       usedNameMappings = nameMappings varRecord
-   in if oldVarName `member` usedNameMappings
+   in if oldVarName `HashMap.member` usedNameMappings
         then
           let newName = "#v" ++ show varCount
-              newMappings = insert oldVarName newName usedNameMappings
+              newMappings = HashMap.insert oldVarName newName usedNameMappings
            in (newName, VarRecord newMappings (unboundedVarMappings varRecord) (varCount + 1))
         else
-          let newMappings = insert oldVarName oldVarName usedNameMappings
+          let newMappings = HashMap.insert oldVarName oldVarName usedNameMappings
            in (oldVarName, VarRecord newMappings (unboundedVarMappings varRecord) (varCount + 1))
 
 _standardize :: (Formula, [[Char]], VarRecord) -> (Formula, VarRecord)
@@ -170,7 +172,7 @@ processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
       (nameSeen, nameIdx) = case name `elemIndex` seenNames of
         Just n -> (True, n)
         Nothing -> (False, -1)
-      nameInExistMappings = name `member` existMappings
+      nameInExistMappings = name `HashMap.member` existMappings
    in if nameSeen
         then
           let quantifier = quantifiers !! nameIdx
@@ -196,13 +198,13 @@ processVarTerm (quantifierTrack, instanceCount, existMappings, term) =
                        in if functionArity == 0 -- no FORALL dependencies
                             then
                               let newExistConstTerm = ConstTerm (ExistConst ("#e" ++ show instanceCount))
-                                  newMappings = insert name newExistConstTerm existMappings
+                                  newMappings = HashMap.insert name newExistConstTerm existMappings
                                in (instanceCount + 1, newMappings, newExistConstTerm)
                             else
                               let functionTerms = Prelude.map (VarTerm . Variable) seenForallNames
                                   functionName = "#f" ++ show instanceCount
                                   newFuncTerm = FuncTerm (Function {name_f = functionName, arity_f = functionArity}) functionTerms
-                                  newMappings = insert name newFuncTerm existMappings
+                                  newMappings = HashMap.insert name newFuncTerm existMappings
                                in (instanceCount + 1, newMappings, newFuncTerm)
         else -- unbounded variable
           (instanceCount, existMappings, term)
@@ -267,7 +269,7 @@ _eliminateExistential (formula, quantifierTrack, instanceCount, existMappings) =
 eliminateExistentialInFormula :: Formula -> Formula
 eliminateExistentialInFormula formula = newFormula
   where
-    (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, empty)
+    (newFormula, _, _) = _eliminateExistential (formula, QuantifierTrack [] [], 0, HashMap.empty)
 
 dropUniversals :: Formula -> Formula
 dropUniversals formula =
@@ -417,3 +419,102 @@ findMGU (l1, l2, substitutions) =
                     Just subs -> Just (subs ++ [sub])
                   (newl1, newl2) = (applySubstitutionOnLiteral sub l1, applySubstitutionOnLiteral sub l2)
                in findMGU (newl1, newl2, newSubstitutions)
+
+------------------ This part is for FOL resolution
+------------------
+getLiteralsFromClause :: Clause -> [Literal]
+getLiteralsFromClause clause = literals where (Clause literals) = clause
+
+getAtomicFormulaFromLiteral :: Literal -> Formula
+getAtomicFormulaFromLiteral literal = atomicFormula where (Literal atomicFormula) = literal
+
+countRelationNames :: [Char] -> HashMap [Char] Int -> HashMap [Char] Int
+countRelationNames relationName nameCounts = 
+  if relationName `HashMap.member` nameCounts then
+    let count = nameCounts ! relationName
+    in HashMap.insert relationName (count + 1) nameCounts
+  else
+    HashMap.insert relationName 1 nameCounts
+
+_checkAloneRelation :: [Clause] -> Bool 
+_checkAloneRelation clauses = 
+  let allLiterals = Prelude.foldr (++) [] (Prelude.map getLiteralsFromClause clauses)
+      allAFs = Prelude.map getAtomicFormulaFromLiteral allLiterals
+      allRelationNames = Prelude.map (\af -> let (AtomicFormula (Relation relationName _) _) = af in relationName) allAFs
+      relationCount = Prelude.foldr countRelationNames HashMap.empty allRelationNames
+      allCounts = HashMap.elems relationCount
+      contains1 = 1 `elem` allCounts
+  in
+    contains1
+
+data LiteralRecord = LR { literal :: Literal, variables :: HashSet [Char] }
+instance Hashable LiteralRecord where
+  hashWithSalt salt lr = hashWithSalt salt (literal lr)
+
+instance Eq LiteralRecord where
+  lr1 == lr2 = literal lr1 == literal lr2
+
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [LiteralRecord] }
+instance Hashable ClauseRecord where
+  hashWithSalt salt cl = hashWithSalt salt (claus cl)
+
+instance Eq ClauseRecord where
+  cr1 == cr2 = claus cr1 == claus cr2
+
+literalToLR :: Literal -> LiteralRecord
+literalToLR literal =
+  let (Literal af) = literal
+      (AtomicFormula _r terms) = af
+      allVars = (HashSet.fromList . Prelude.map (\v -> let (Variable name) = v in name)) (_getVarInTerms terms [])
+  in 
+    LR literal allVars
+
+recordR2LRMapping :: ([Char], LiteralRecord) -> HashMap [Char] [LiteralRecord] -> HashMap [Char] [LiteralRecord]
+recordR2LRMapping lrWithRName r2lrMappings = 
+  let (relationName, lr) = lrWithRName
+  in
+    if relationName `HashMap.member` r2lrMappings
+      then
+        let lrList = r2lrMappings ! relationName
+        in HashMap.insert relationName (lr : lrList) r2lrMappings
+    else
+      HashMap.insert relationName [lr] r2lrMappings
+
+clauseToCR :: Clause -> ClauseRecord
+clauseToCR clause = 
+  let (Clause literals) = clause
+      lrWithRelationName = Prelude.map (\l -> let (Literal (AtomicFormula (Relation r _) _)) = l
+                                                  lr = literalToLR l
+                                                  in (r, lr)) literals
+      r2lrmapping = Prelude.foldr recordR2LRMapping HashMap.empty lrWithRelationName
+      rSet = (HashSet.fromList . HashMap.keys) r2lrmapping
+  in
+    CR clause rSet r2lrmapping
+
+resolve1on1 :: ClauseRecord -> ClauseRecord -> Maybe ClauseRecord
+resolve1on1 clause toBeResovledClause = Nothing
+
+resolve :: ClauseRecord -> [ClauseRecord] -> Maybe [ClauseRecord]
+resolve clause toResolveClauses = 
+  case toResolveClauses of 
+    [] -> Just [] -- todo: check this logic
+    (c : trcs) ->
+      let resolveResult = resolve1on1 clause c
+      in 
+        case resolveResult of
+          Nothing -> Nothing 
+          Just resultingClause -> Nothing --TODO
+
+resolveClauses :: [Clause] -> Maybe [Clause]
+resolveClauses clauses =
+  if _checkAloneRelation clauses then
+    Just [] -- if clauses containing one or more relations that occur once, cannot resolve, return []
+  else 
+    let clauseRecordList = Prelude.map clauseToCR clauses
+        numClauses = length clauseRecordList
+        indices = [0,1..(numClauses-1)]
+        crWithIdx = zip indices clauseRecordList
+        toDoList = Prelude.map (\(idx, cr)-> let toResolveCRs = Prelude.filter (\(cridx, _) -> cridx /= idx) crWithIdx in (cr, toResolveCRs)) crWithIdx
+        toDoMap = HashMap.fromList toDoList
+    in
+      Nothing -- TODO
