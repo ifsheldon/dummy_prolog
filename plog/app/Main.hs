@@ -6,6 +6,12 @@ import Lib
 import SigmaSignature
 import Literals
 
+testMGU l1 l2 = do
+  let (subl1, subl2, subs) = findMGU (l1, l2, Nothing)
+  print subl1
+  print subl2
+  print subs
+
 main = do
   let v0 = Variable "v0"
   let v1 = Variable "v1"
@@ -45,6 +51,45 @@ main = do
   let clauses = fromCNFFormulaToClauses processedFormula
   print clauses
 
+  print "###################################"
+  let a = ConstTerm A
+  let b = ConstTerm B
+  let z = Variable "z"
+  let g = Function "g" 1
+  let h = Function "h" 1
+  let f = Function "f" 2
+  let p = Relation "P" 2
+  let tx = VarTerm x
+  let ty = VarTerm y
+  let tz = VarTerm z
+  print "q1"
+  let pax = AtomicFormula p [a, tx]
+  let pyy = AtomicFormula p [ty, ty]
+  let literal_pax = Literal pax
+  let literal_pyy = Literal pyy
+  testMGU literal_pax literal_pyy
+  print "q2"
+  let lpgxz = Literal (AtomicFormula p [FuncTerm g [tx], tz])
+  let lpgyz = Literal (AtomicFormula p [FuncTerm g [ty], FuncTerm g [tz]])
+  testMGU lpgxz lpgyz
+  print "q3"
+  let lpgxy = Literal (AtomicFormula p [FuncTerm g [tx], ty])
+  let lpyhx = Literal (AtomicFormula p [ty, FuncTerm h [tx]])
+  testMGU lpgxy lpyhx
+  print "q4"
+  let lpxgx = Literal (AtomicFormula p [tx, FuncTerm g [tx]])
+  let lpgyy = Literal (AtomicFormula p [FuncTerm g [ty], ty])
+  testMGU lpxgx lpgyy
+  print "q5"
+  let lpxgy = Literal (AtomicFormula p [tx, FuncTerm g [ty]])
+  let lgypx = Literal (AtomicFormula p [FuncTerm g [ty], tx])
+  testMGU lpxgy lgypx
+  print "q6"
+  let lpyfxy = Literal (AtomicFormula p [ty, FuncTerm f [tx,ty]])
+  let lbfay = Literal (AtomicFormula p [b, FuncTerm f [a, ty]])
+  testMGU lpyfxy lbfay
+  let lpgzfaz = Literal (AtomicFormula p [FuncTerm g [tz], FuncTerm f [a, tz]])
+  testMGU lpyfxy lpgzfaz
 -- print "\n Testing distribute AND OR----------"
 -- let formulaA = AtomicFormula p [ConstTerm A]
 -- let formulaB = AtomicFormula p [ConstTerm B]
