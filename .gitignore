@@ -21,3 +21,6 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+plog/.vscode/launch.json
+plog/.vscode/phoityne.log
+plog/.vscode/tasks.json
