@@ -10,6 +10,10 @@ module Algorithms
     naiveRemoveDuplicate,
     findMGU,
     Substitution (..),
+    Disagreement (..),
+    findOneDisagreement,
+    applySubstitutionOnLiteral,
+    applySubstitutionOnOneTerm
   )
 where
 
@@ -312,7 +316,7 @@ naiveRemoveDuplicate formula = case formula of
 ------------------
 data Substitution = Term `BY` Term deriving (Show, Eq)
 
-data Disagreement = NONE | NONUNIFIABLE | UNIFIABLE {replacee :: Term, replacement :: Term}
+data Disagreement = NONE | NONUNIFIABLE | UNIFIABLE {replacee :: Term, replacement :: Term} deriving (Show, Eq)
 
 _stripNOT :: Formula -> Formula
 _stripNOT literalFormula =
@@ -339,25 +343,34 @@ findDisagreementInTerms ts1 ts2 =
    in case termPairs of
         [] -> NONE
         (tp : tps) ->
-          case tp of
-            (ConstTerm t1, ConstTerm t2) -> if t1 == t2 then NONE else NONUNIFIABLE --ignoring the case (concrete const, existential const)
-            (ConstTerm t1, VarTerm t2) -> UNIFIABLE (snd tp) (fst tp)
-            (ConstTerm _, FuncTerm _ _) -> NONUNIFIABLE
-            (VarTerm t1, ConstTerm t2) -> uncurry UNIFIABLE tp
-            (VarTerm t1, VarTerm t2) -> if t1 == t2 then NONE else uncurry UNIFIABLE tp
-            (VarTerm t1, FuncTerm _ funcTerms) ->
-              if t1 `elem` varsInFuncTerms then NONUNIFIABLE else uncurry UNIFIABLE tp
-              where
-                varsInFuncTerms = _getVarInTerms funcTerms []
-            (FuncTerm _ _, ConstTerm _) -> NONUNIFIABLE
-            (FuncTerm _ funcTerms, VarTerm t2) ->
-              if t2 `elem` varsInFuncTerms then NONUNIFIABLE else UNIFIABLE (snd tp) (fst tp)
-              where
-                varsInFuncTerms = _getVarInTerms funcTerms []
-            (FuncTerm f1 fts1, FuncTerm f2 fts2) ->
-              if f1 == f2
-                then findDisagreementInTerms fts1 fts2
-                else NONUNIFIABLE
+          let (ts1rest, ts2rest) = unzip tps
+          in 
+            if fst tp == snd tp 
+              then findDisagreementInTerms ts1rest ts2rest
+              else 
+                case tp of
+                  (ConstTerm t1, ConstTerm t2) -> if t1 == t2 
+                    then findDisagreementInTerms ts1rest ts2rest
+                    else NONUNIFIABLE --ignoring the case (concrete const, existential const)
+                  (ConstTerm t1, VarTerm t2) -> UNIFIABLE (snd tp) (fst tp)
+                  (ConstTerm _, FuncTerm _ _) -> NONUNIFIABLE
+                  (VarTerm t1, ConstTerm t2) -> uncurry UNIFIABLE tp
+                  (VarTerm t1, VarTerm t2) -> if t1 == t2 
+                    then findDisagreementInTerms ts1rest ts2rest
+                    else uncurry UNIFIABLE tp
+                  (VarTerm t1, FuncTerm _ funcTerms) ->
+                    if t1 `elem` varsInFuncTerms then NONUNIFIABLE else uncurry UNIFIABLE tp
+                    where
+                      varsInFuncTerms = _getVarInTerms funcTerms []
+                  (FuncTerm _ _, ConstTerm _) -> NONUNIFIABLE
+                  (FuncTerm _ funcTerms, VarTerm t2) ->
+                    if t2 `elem` varsInFuncTerms then NONUNIFIABLE else UNIFIABLE (snd tp) (fst tp)
+                    where
+                      varsInFuncTerms = _getVarInTerms funcTerms []
+                  (FuncTerm f1 fts1, FuncTerm f2 fts2) ->
+                    if f1 == f2
+                      then findDisagreementInTerms fts1 fts2
+                      else NONUNIFIABLE
 
 findOneDisagreement :: Literal -> Literal -> Disagreement
 findOneDisagreement l1 l2 =
@@ -370,7 +383,7 @@ applySubstitutionOnOneTerm :: Substitution -> Term -> Term
 applySubstitutionOnOneTerm sub term =
   case term of
     FuncTerm f termsInFunc -> FuncTerm f (applySubstitutionOnTerms sub termsInFunc)
-    _ -> if term == t0 then t1 else t0 where (t0 `BY` t1) = sub
+    _ -> if term == t0 then t1 else term where (t0 `BY` t1) = sub
 
 applySubstitutionOnTerms :: Substitution -> [Term] -> [Term]
 applySubstitutionOnTerms sub = Prelude.map (applySubstitutionOnOneTerm sub)
