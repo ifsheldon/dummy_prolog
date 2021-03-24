@@ -447,14 +447,14 @@ _checkAloneRelation clauses =
   in
     contains1
 
-data LiteralRecord = LR { literal :: Literal, variables :: HashSet [Char] }
+data LiteralRecord = LR { literal :: Literal, variables :: HashSet [Char] } deriving (Show)
 instance Hashable LiteralRecord where
   hashWithSalt salt lr = hashWithSalt salt (literal lr)
 
 instance Eq LiteralRecord where
   lr1 == lr2 = literal lr1 == literal lr2
 
-data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [LiteralRecord] }
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [LiteralRecord] } deriving (Show)
 instance Hashable ClauseRecord where
   hashWithSalt salt cl = hashWithSalt salt (claus cl)
 
