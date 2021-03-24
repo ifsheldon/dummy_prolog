@@ -447,14 +447,7 @@ _checkAloneRelation clauses =
   in
     contains1
 
-data LiteralRecord = LR { literal :: Literal, variables :: HashSet [Char] } deriving (Show)
-instance Hashable LiteralRecord where
-  hashWithSalt salt lr = hashWithSalt salt (literal lr)
-
-instance Eq LiteralRecord where
-  lr1 == lr2 = literal lr1 == literal lr2
-
-data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [LiteralRecord] } deriving (Show)
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [Literal] } deriving (Show)
 instance Hashable ClauseRecord where
   hashWithSalt salt cl = hashWithSalt salt (claus cl)
 
@@ -463,15 +456,8 @@ instance Eq ClauseRecord where
 
 data ResolveResult = IRRESOLVABLE | RESOLVABLE (Maybe ClauseRecord) deriving(Show, Eq)
 
-literalToLR :: Literal -> LiteralRecord
-literalToLR literal =
-  let (Literal af) = literal
-      (AtomicFormula _r terms) = af
-      allVars = (HashSet.fromList . Prelude.map (\v -> let (Variable name) = v in name)) (_getVarInTerms terms [])
-  in 
-    LR literal allVars
 
-recordR2LRMapping :: ([Char], LiteralRecord) -> HashMap [Char] [LiteralRecord] -> HashMap [Char] [LiteralRecord]
+recordR2LRMapping :: ([Char], Literal) -> HashMap [Char] [Literal] -> HashMap [Char] [Literal]
 recordR2LRMapping lrWithRName r2lrMappings = 
   let (relationName, lr) = lrWithRName
   in
@@ -485,18 +471,15 @@ recordR2LRMapping lrWithRName r2lrMappings =
 clauseToCR :: Clause -> ClauseRecord
 clauseToCR clause = 
   let (Clause literals) = clause
-      lrWithRelationName = Prelude.map (\l -> let (Literal (AtomicFormula (Relation r _) _)) = l
-                                                  lr = literalToLR l
-                                                  in (r, lr)) literals
-      r2lrmapping = Prelude.foldr recordR2LRMapping HashMap.empty lrWithRelationName
+      literalWithRelationName = Prelude.map (\l -> let (Literal (AtomicFormula (Relation r _) _)) = l in (r, l)) literals
+      r2lrmapping = Prelude.foldr recordR2LRMapping HashMap.empty literalWithRelationName
       rSet = (HashSet.fromList . HashMap.keys) r2lrmapping
   in
     CR clause rSet r2lrmapping
 
-tryResolveTwoLiteral :: LiteralRecord -> LiteralRecord -> [Substitution] -> Maybe [Substitution]
-tryResolveTwoLiteral lr1 lr2 subs = 
-  let (l1, l2) = (literal lr1, literal lr2)
-      (Literal af1, Literal af2) = (l1, l2)
+tryResolveTwoLiteral :: Literal -> Literal -> [Substitution] -> Maybe [Substitution]
+tryResolveTwoLiteral l1 l2 subs = 
+  let (Literal af1, Literal af2) = (l1, l2)
   in case (af1, af2) of
     (AtomicFormula _ _, AtomicFormula _ _) -> Nothing 
     (NOT (AtomicFormula _ _), NOT (AtomicFormula _ _)) -> Nothing 
@@ -507,7 +490,7 @@ tryResolveTwoLiteral lr1 lr2 subs =
           Nothing -> Nothing -- since the two are not unifiable, they cannot resolve, so returning Nothing
           Just newsubstituions -> newsubs -- the two can resolve each other, returnning a new substituion list that is appended with new substituions that unify the two literals
 
-resolveTwoLiteralSets :: ([LiteralRecord], [LiteralRecord], [Substitution]) -> ([LiteralRecord], [LiteralRecord], [Substitution])
+resolveTwoLiteralSets :: ([Literal], [Literal], [Substitution]) -> ([Literal], [Literal], [Substitution])
 resolveTwoLiteralSets (l1s, l2s, subs) = 
   case (l1s, l2s) of
     ([], _) -> (l1s, l2s, subs)
