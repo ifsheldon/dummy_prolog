@@ -533,11 +533,23 @@ resolve1on1Clause :: ClauseRecord -> ClauseRecord -> ResolveResult
 resolve1on1Clause clause1 clause2 = 
   let relationsInClause1 = relationSet clause1
       relationsInClause2 = relationSet clause2
+      (Clause literalsInC1, Clause literalsInC2) = (claus clause1, claus clause2)
       commonRelations = HashSet.intersection relationsInClause1 relationsInClause2
   in 
     if HashSet.size commonRelations /= 0
-      then -- TODO
-        IRRESOLVABLE
+      then
+        let maybeNewClause = resolveTwoLiteralSets literalsInC1 literalsInC2
+        in
+          case maybeNewClause of
+            Nothing -> IRRESOLVABLE
+            Just newClauseRecord -> 
+              let (Clause newLiterals) = claus newClauseRecord
+              in
+                if Prelude.null newLiterals -- if resulting clause has no literals, then found contradiction
+                  then
+                    RESOLVABLE Nothing
+                  else
+                    RESOLVABLE (Just newClauseRecord)
       else -- if not having common relations, two clauses for sure cannot resolve
         IRRESOLVABLE
 
