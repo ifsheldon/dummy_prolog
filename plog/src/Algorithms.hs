@@ -461,6 +461,8 @@ instance Hashable ClauseRecord where
 instance Eq ClauseRecord where
   cr1 == cr2 = claus cr1 == claus cr2
 
+data ResolveResult = IRRESOLVABLE | RESOLVABLE (Maybe ClauseRecord) deriving(Show, Eq)
+
 literalToLR :: Literal -> LiteralRecord
 literalToLR literal =
   let (Literal af) = literal
@@ -491,8 +493,40 @@ clauseToCR clause =
   in
     CR clause rSet r2lrmapping
 
-resolve1on1 :: ClauseRecord -> ClauseRecord -> Maybe ClauseRecord
-resolve1on1 clause toBeResovledClause = Nothing
+tryResolveTwoLiteral :: LiteralRecord -> LiteralRecord -> [Substitution] -> Maybe [Substitution]
+tryResolveTwoLiteral lr1 lr2 subs = 
+  let (l1, l2) = (literal lr1, literal lr2)
+      (Literal af1, Literal af2) = (l1, l2)
+  in case (af1, af2) of
+    (AtomicFormula _ _, AtomicFormula _ _) -> Nothing 
+    (NOT (AtomicFormula _ _), NOT (AtomicFormula _ _)) -> Nothing 
+    _ -> -- either one has a NOT, the other has no NOT
+      let (newl1, newl2, newsubs) = findMGU (l1, l2, Just subs)
+      in
+        case newsubs of
+          Nothing -> Nothing -- since the two are not unifiable, they cannot resolve, so returning Nothing
+          Just newsubstituions -> newsubs -- the two can resolve each other, returnning a new substituion list that is appended with new substituions that unify the two literals
+
+resolveTwoLiteralSets :: ([LiteralRecord], [LiteralRecord], [Substitution]) -> ([LiteralRecord], [LiteralRecord], [Substitution])
+resolveTwoLiteralSets (l1s, l2s, subs) = 
+  case (l1s, l2s) of
+    ([], _) -> (l1s, l2s, subs)
+    (_, []) -> (l1s, l2s, subs)
+    ((l1 : l1ss), (l2 : l2ss)) -> (l1s, l2s, subs) --TODO
+
+
+
+resolve1on1 :: ClauseRecord -> ClauseRecord -> ResolveResult
+resolve1on1 clause1 clause2 = 
+  let relationsInClause1 = relationSet clause1
+      relationsInClause2 = relationSet clause2
+      commonRelations = HashSet.intersection relationsInClause1 relationsInClause2
+  in 
+    if HashSet.size commonRelations /= 0
+      then
+        IRRESOLVABLE --TODO
+      else -- if not having common relations, two clauses for sure cannot resolve
+        IRRESOLVABLE
 
 resolve :: ClauseRecord -> [ClauseRecord] -> Maybe [ClauseRecord]
 resolve clause toResolveClauses = 
@@ -502,8 +536,11 @@ resolve clause toResolveClauses =
       let resolveResult = resolve1on1 clause c
       in 
         case resolveResult of
-          Nothing -> Nothing 
-          Just resultingClause -> Nothing --TODO
+          IRRESOLVABLE -> Just [] 
+          RESOLVABLE resolvedClause ->
+            case resolvedClause of
+              Nothing -> Nothing -- resolution succeeded
+              Just resultedClause -> Nothing -- TODO
 
 resolveClauses :: [Clause] -> Maybe [Clause]
 resolveClauses clauses =
