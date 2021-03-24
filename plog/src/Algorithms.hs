@@ -422,6 +422,15 @@ findMGU (l1, l2, substitutions) =
 
 ------------------ This part is for FOL resolution
 ------------------
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [Literal] } deriving (Show)
+instance Hashable ClauseRecord where
+  hashWithSalt salt cl = hashWithSalt salt (claus cl)
+
+instance Eq ClauseRecord where
+  cr1 == cr2 = claus cr1 == claus cr2
+
+data ResolveResult = IRRESOLVABLE | RESOLVABLE (Maybe ClauseRecord) deriving(Show, Eq)
+
 getLiteralsFromClause :: Clause -> [Literal]
 getLiteralsFromClause clause = literals where (Clause literals) = clause
 
@@ -446,16 +455,6 @@ _checkAloneRelation clauses =
       contains1 = 1 `elem` allCounts
   in
     contains1
-
-data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [Literal] } deriving (Show)
-instance Hashable ClauseRecord where
-  hashWithSalt salt cl = hashWithSalt salt (claus cl)
-
-instance Eq ClauseRecord where
-  cr1 == cr2 = claus cr1 == claus cr2
-
-data ResolveResult = IRRESOLVABLE | RESOLVABLE (Maybe ClauseRecord) deriving(Show, Eq)
-
 
 recordR2LRMapping :: ([Char], Literal) -> HashMap [Char] [Literal] -> HashMap [Char] [Literal]
 recordR2LRMapping lrWithRName r2lrMappings = 
@@ -484,30 +483,68 @@ tryResolveTwoLiteral l1 l2 subs =
     (AtomicFormula _ _, AtomicFormula _ _) -> Nothing 
     (NOT (AtomicFormula _ _), NOT (AtomicFormula _ _)) -> Nothing 
     _ -> -- either one has a NOT, the other has no NOT
-      let (newl1, newl2, newsubs) = findMGU (l1, l2, Just subs)
+      let (_newl1, _newl2, newsubs) = findMGU (l1, l2, Just subs)
       in
         case newsubs of
           Nothing -> Nothing -- since the two are not unifiable, they cannot resolve, so returning Nothing
           Just newsubstituions -> newsubs -- the two can resolve each other, returnning a new substituion list that is appended with new substituions that unify the two literals
 
-resolveTwoLiteralSets :: ([Literal], [Literal], [Substitution]) -> ([Literal], [Literal], [Substitution])
-resolveTwoLiteralSets (l1s, l2s, subs) = 
-  case (l1s, l2s) of
-    ([], _) -> (l1s, l2s, subs)
-    (_, []) -> (l1s, l2s, subs)
-    ((l1 : l1ss), (l2 : l2ss)) -> (l1s, l2s, subs) --TODO
+_resolveOneLiteralWithLiteralSet :: Literal -> [Literal] -> [Literal] -> Maybe ([Literal], [Substitution])
+_resolveOneLiteralWithLiteralSet resolver resolvees preresolvees = 
+  case resolvees of 
+    [] -> Nothing 
+    (resolvee : rs) ->
+      let maybeNewSubs = tryResolveTwoLiteral resolver resolvee []
+      in
+        case maybeNewSubs of -- if find one pair that can be resolve, stop
+          Nothing -> _resolveOneLiteralWithLiteralSet resolver rs (resolvee : preresolvees)
+          Just subs -> Just (preresolvees ++ rs , subs)
 
+resolveOneLiteralWithLiteralSet :: Literal -> [Literal] -> Maybe ([Literal], [Substitution])
+resolveOneLiteralWithLiteralSet resolver resolvees = _resolveOneLiteralWithLiteralSet resolver resolvees []
 
+applySubsOnLiteral :: [Substitution] -> Literal -> Literal
+applySubsOnLiteral subs literal =
+  case subs of
+    [] -> literal
+    (sub:restsubs) -> applySubsOnLiteral restsubs (applySubstitutionOnLiteral sub literal)
 
-resolve1on1 :: ClauseRecord -> ClauseRecord -> ResolveResult
-resolve1on1 clause1 clause2 = 
+_resolveTwoLiteralSets :: [Literal] -> [Literal]-> [Literal] -> Maybe ClauseRecord
+_resolveTwoLiteralSets ls1 prels1 ls2 =
+  case ls1 of
+    [] -> Nothing 
+    (l : ls) ->
+      let maybeResolveResult = resolveOneLiteralWithLiteralSet l ls2
+      in
+        case maybeResolveResult of 
+          Nothing -> _resolveTwoLiteralSets ls (l:prels1) ls2
+          Just (newls2, subs) ->
+            let newls1 = prels1 ++ ls
+                newls1WithSubs = Prelude.map (applySubsOnLiteral subs) newls1
+                newls2WithSubs = Prelude.map (applySubsOnLiteral subs) newls2
+                newClause = Clause (newls1WithSubs ++ newls2WithSubs)
+            in
+              Just (clauseToCR newClause)
+
+resolveTwoLiteralSets :: [Literal] -> [Literal] -> Maybe ClauseRecord
+resolveTwoLiteralSets ls1 ls2 = _resolveTwoLiteralSets ls1 [] ls2
+
+resolve1on1Clause :: ClauseRecord -> ClauseRecord -> ResolveResult
+resolve1on1Clause clause1 clause2 = 
   let relationsInClause1 = relationSet clause1
+      relation2LiteralsInClause1 = relation2literals clause1
       relationsInClause2 = relationSet clause2
+      relation2LiteralsInClause2 = relation2literals clause2
       commonRelations = HashSet.intersection relationsInClause1 relationsInClause2
+      commonRelationsList = HashSet.toList commonRelations
   in 
     if HashSet.size commonRelations /= 0
-      then
-        IRRESOLVABLE --TODO
+      then --FIXME: should apply a set of substituions one by one
+        let literalListOnCommonRelations = Prelude.map (\relationName -> (fromJust (HashMap.lookup relationName relation2LiteralsInClause1), fromJust (HashMap.lookup relationName relation2LiteralsInClause2))) commonRelationsList
+            literalSetResolveResults = Prelude.map (uncurry resolveTwoLiteralSets)  literalListOnCommonRelations
+            newClauses = Prelude.filter isJust literalSetResolveResults
+        in 
+          IRRESOLVABLE
       else -- if not having common relations, two clauses for sure cannot resolve
         IRRESOLVABLE
 
@@ -516,7 +553,7 @@ resolve clause toResolveClauses =
   case toResolveClauses of 
     [] -> Just [] -- todo: check this logic
     (c : trcs) ->
-      let resolveResult = resolve1on1 clause c
+      let resolveResult = resolve1on1Clause clause c
       in 
         case resolveResult of
           IRRESOLVABLE -> Just [] 
