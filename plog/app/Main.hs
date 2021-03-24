@@ -52,8 +52,8 @@ main = do
   print clauses
 
   print "###################################"
-  let a = ConstTerm A
-  let b = ConstTerm B
+  let a = ConstTerm (Constant "A")
+  let b = ConstTerm (Constant "B")
   let z = Variable "z"
   let g = Function "g" 1
   let h = Function "h" 1

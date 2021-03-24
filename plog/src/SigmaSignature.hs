@@ -16,8 +16,11 @@ module SigmaSignature
 where
 
 import Data.Hashable
+import Data.HashSet as HashSet
 
-data Constant = A | B | C | D | E | F | ExistConst [Char] deriving (Show, Eq) -- predefined constant symbols
+data Signature = Signature {constants :: HashSet Constant, functions :: HashSet Function, relations :: HashSet Relation} deriving (Show)
+
+data Constant = Constant [Char] | ExistConst [Char] deriving (Show, Eq)
 
 instance Hashable Constant where
   hashWithSalt salt const = hashWithSalt salt (show const)
@@ -89,36 +92,48 @@ instance Eq Formula where -- added place equality invariance compared to derived
     (QFormula q1 v1 f1, QFormula q2 v2 f2) -> q1 == q2 && v1 == v2 && f1 == f2 --restricted version
     _ -> False
 
-validateTerm :: Term -> Bool
-validateTerm term = case term of
-  ConstTerm const -> True
+validateTerm :: Signature -> Term -> Bool
+validateTerm signature term = case term of
+  ConstTerm const -> const `HashSet.member` constants signature
   VarTerm var -> True
   FuncTerm function terms ->
     let functionArity = arity_f function
         arityMatch = length terms == functionArity
-     in arityMatch && _validateTerms True terms
+        funcInSignature = function `HashSet.member` functions signature
+     in arityMatch && _validateTerms signature True terms
 
-_validateTerms :: Bool -> [Term] -> Bool
-_validateTerms isValidUntilNow terms =
+_validateTerms :: Signature -> Bool -> [Term] -> Bool
+_validateTerms signature isValidUntilNow terms =
   if isValidUntilNow
-    then let (t : ts) = terms in _validateTerms (validateTerm t) ts
+    then let (t : ts) = terms in _validateTerms signature (validateTerm signature t) ts
     else False
 
-validateTerms :: [Term] -> Bool
-validateTerms = _validateTerms True
+validateTerms :: Signature -> [Term] -> Bool
+validateTerms signature = _validateTerms signature True
 
-validateFormula :: Formula -> Bool
-validateFormula formula = case formula of
+validateFormula :: Signature -> Formula -> Bool
+validateFormula signature formula = case formula of
   AtomicFormula relation terms ->
     let relationArity = arity_r relation
         arityMatch = length terms == relationArity
-     in arityMatch && validateTerms terms
-  QFormula quantifier var f -> validateFormula f
-  NOT f -> validateFormula f
-  a `AND` b -> validateFormula a && validateFormula b
-  a `OR` b -> validateFormula a && validateFormula b
-  a `IMPLY` b -> validateFormula a && validateFormula b
-  a `EQUIV` b -> validateFormula a && validateFormula b
+        relationInSignature = relation `HashSet.member` relations signature
+     in arityMatch && relationInSignature && validateTerms signature terms
+  QFormula quantifier var f -> validateFormula signature f
+  NOT f -> validateFormula signature f
+  a `AND` b -> validateFormula signature a && validateFormula signature b
+  a `OR` b -> validateFormula signature a && validateFormula signature b
+  a `IMPLY` b -> validateFormula signature a && validateFormula signature b
+  a `EQUIV` b -> validateFormula signature a && validateFormula signature b
+
+validateSignature :: Signature -> Bool 
+validateSignature signature = 
+  let
+    containsNoZeroArityFunction = all ((/=0).arity_f) (HashSet.toList (functions signature))
+    containsNoZeroArityRelation = all ((/=0).arity_r) (HashSet.toList (relations signature))
+    containsNoExistConst = all (\constant -> case constant of 
+                                                  Constant _ -> True
+                                                  _ -> False) (HashSet.toList (constants signature))
+  in containsNoZeroArityFunction && containsNoZeroArityRelation && containsNoExistConst
 
 ------------helper functions
 var :: [Char] -> Term
