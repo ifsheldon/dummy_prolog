@@ -422,7 +422,7 @@ findMGU (l1, l2, substitutions) =
 
 ------------------ This part is for FOL resolution
 ------------------
-data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char], relation2literals :: HashMap [Char] [Literal] } deriving (Show)
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char]} deriving (Show)
 instance Hashable ClauseRecord where
   hashWithSalt salt cl = hashWithSalt salt (claus cl)
 
@@ -470,11 +470,11 @@ recordR2LRMapping lrWithRName r2lrMappings =
 clauseToCR :: Clause -> ClauseRecord
 clauseToCR clause = 
   let (Clause literals) = clause
-      literalWithRelationName = Prelude.map (\l -> let (Literal (AtomicFormula (Relation r _) _)) = l in (r, l)) literals
-      r2lrmapping = Prelude.foldr recordR2LRMapping HashMap.empty literalWithRelationName
-      rSet = (HashSet.fromList . HashMap.keys) r2lrmapping
+      rSet = HashSet.fromList (Prelude.map (\(Literal literalFormula) -> let af = _stripNOT literalFormula 
+                                                                             (AtomicFormula (Relation rName _) _) = af 
+                                                                          in rName ) literals)
   in
-    CR clause rSet r2lrmapping
+    CR clause rSet
 
 tryResolveTwoLiteral :: Literal -> Literal -> [Substitution] -> Maybe [Substitution]
 tryResolveTwoLiteral l1 l2 subs = 
@@ -532,19 +532,12 @@ resolveTwoLiteralSets ls1 ls2 = _resolveTwoLiteralSets ls1 [] ls2
 resolve1on1Clause :: ClauseRecord -> ClauseRecord -> ResolveResult
 resolve1on1Clause clause1 clause2 = 
   let relationsInClause1 = relationSet clause1
-      relation2LiteralsInClause1 = relation2literals clause1
       relationsInClause2 = relationSet clause2
-      relation2LiteralsInClause2 = relation2literals clause2
       commonRelations = HashSet.intersection relationsInClause1 relationsInClause2
-      commonRelationsList = HashSet.toList commonRelations
   in 
     if HashSet.size commonRelations /= 0
-      then --FIXME: should apply a set of substituions one by one
-        let literalListOnCommonRelations = Prelude.map (\relationName -> (fromJust (HashMap.lookup relationName relation2LiteralsInClause1), fromJust (HashMap.lookup relationName relation2LiteralsInClause2))) commonRelationsList
-            literalSetResolveResults = Prelude.map (uncurry resolveTwoLiteralSets)  literalListOnCommonRelations
-            newClauses = Prelude.filter isJust literalSetResolveResults
-        in 
-          IRRESOLVABLE
+      then -- TODO
+        IRRESOLVABLE
       else -- if not having common relations, two clauses for sure cannot resolve
         IRRESOLVABLE
 
