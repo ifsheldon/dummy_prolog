@@ -9,12 +9,18 @@ import qualified Data.HashSet as HashSet
 import Data.Hashable
 import SigmaSignature
 
-data Literal = Literal Formula deriving (Eq, Show)
+data Literal = Literal Formula deriving (Eq)
+
+instance Show Literal where
+  show literal = show af where (Literal af) = literal
 
 instance Hashable Literal where
   hashWithSalt salt literal = hashWithSalt salt (show formula) where (Literal formula) = literal
 
-data Clause = Clause [Literal] deriving (Eq, Show)
+data Clause = Clause [Literal] deriving (Eq)
+
+instance Show Clause where
+  show clause = show literals where (Clause literals) = clause
 
 instance Hashable Clause where
   hashWithSalt salt clause = sum (map (hashWithSalt salt) literals) where (Clause literals) = clause
