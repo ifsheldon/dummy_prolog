@@ -1,9 +1,10 @@
 module Main where
-
-import Algorithms
 import Data.HashMap.Strict as HashMap
+import Data.HashSet as HashSet
+import Algorithms
 import SigmaSignature
 import Literals
+import Theories
 
 main = do
   let x = Variable "x"
@@ -12,6 +13,9 @@ main = do
   let vy = VarTerm y
   let isBarber = Relation "isBarber" 1
   let shaves = Relation "shaves" 2
+  let barberSignature = Signature {constants = HashSet.empty, functions = HashSet.empty, relations = HashSet.fromList [isBarber, shaves]}
+  let barberSignatureValid = validateSignature barberSignature
+  print ("Barber signature is valid: " ++ show barberSignatureValid)
   let bx = AtomicFormula isBarber [vx]
   let syy = AtomicFormula shaves [vy, vy]
   let sxy = AtomicFormula shaves [vx, vy]
@@ -34,3 +38,9 @@ main = do
   let clauses = concat [clausesA, clausesB, negQueryClauses]
   let resolveResult = resolveClauses clauses
   print resolveResult
+  --Alternatively, use theory and queryWithTheory to perform resolution
+  let barberTheory = FormulaTheory [formulaA, formulaB]
+  let isBarberTheoryValid = validateFormulaTheory barberSignature barberTheory
+  print ("barber theory is valid w.r.t barber signature: " ++ show isBarberTheoryValid)
+  let queryResult = queryWithTheory barberTheory query
+  print queryResult
