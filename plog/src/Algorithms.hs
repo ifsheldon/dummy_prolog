@@ -13,7 +13,9 @@ module Algorithms
     Disagreement (..),
     findOneDisagreement,
     applySubstitutionOnLiteral,
-    applySubstitutionOnOneTerm
+    applySubstitutionOnOneTerm,
+    resolveClauses,
+    ResolveResult(..)
   )
 where
 
@@ -24,6 +26,11 @@ import Literals
 import SigmaSignature
 import Data.HashSet as HashSet
 import Data.Hashable
+
+import Debug.Trace (traceShow, trace)
+
+traceShow' msg arg = traceShow arg arg
+trace' msg arg = trace (msg ++ show arg) arg
 
 ------------------ This part is for CNF conversion
 ------------------
@@ -422,7 +429,9 @@ findMGU (l1, l2, substitutions) =
 
 ------------------ This part is for FOL resolution
 ------------------
-data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char]} deriving (Show)
+data ClauseRecord = CR { claus :: Clause , relationSet :: HashSet [Char]}
+instance Show ClauseRecord where
+  show cr = show (claus cr)
 instance Hashable ClauseRecord where
   hashWithSalt salt cl = hashWithSalt salt (claus cl)
 
@@ -449,7 +458,7 @@ _checkAloneRelation :: [Clause] -> Bool
 _checkAloneRelation clauses = 
   let allLiterals = Prelude.foldr (++) [] (Prelude.map getLiteralsFromClause clauses)
       allAFs = Prelude.map getAtomicFormulaFromLiteral allLiterals
-      allRelationNames = Prelude.map (\af -> let (AtomicFormula (Relation relationName _) _) = af in relationName) allAFs
+      allRelationNames = Prelude.map (\af -> let (AtomicFormula (Relation relationName _) _) = _stripNOT af in relationName) allAFs
       relationCount = Prelude.foldr countRelationNames HashMap.empty allRelationNames
       allCounts = HashMap.elems relationCount
       contains1 = 1 `elem` allCounts
@@ -509,6 +518,22 @@ applySubsOnLiteral subs literal =
     [] -> literal
     (sub:restsubs) -> applySubsOnLiteral restsubs (applySubstitutionOnLiteral sub literal)
 
+_addToSet :: Literal -> HashSet Literal -> HashSet Literal
+_addToSet literal literalSet =
+  let negatedLiteral = case literal of 
+        (Literal (NOT af)) -> Literal af
+        (Literal af) -> Literal (NOT af)
+  in
+    if negatedLiteral `HashSet.member` literalSet
+      then
+        HashSet.delete negatedLiteral literalSet
+      else
+        HashSet.insert literal literalSet
+
+
+_filterOutPosNegLiteralPairsInLiterals :: [Literal] -> [Literal]
+_filterOutPosNegLiteralPairsInLiterals literals = HashSet.toList (Prelude.foldr _addToSet HashSet.empty literals)
+
 _resolveTwoLiteralSets :: [Literal] -> [Literal]-> [Literal] -> Maybe ClauseRecord
 _resolveTwoLiteralSets ls1 prels1 ls2 =
   case ls1 of
@@ -522,7 +547,7 @@ _resolveTwoLiteralSets ls1 prels1 ls2 =
             let newls1 = prels1 ++ ls
                 newls1WithSubs = Prelude.map (applySubsOnLiteral subs) newls1
                 newls2WithSubs = Prelude.map (applySubsOnLiteral subs) newls2
-                newClause = Clause (newls1WithSubs ++ newls2WithSubs)
+                newClause = Clause (_filterOutPosNegLiteralPairsInLiterals (newls1WithSubs ++ newls2WithSubs))
             in
               Just (clauseToCR newClause)
 
@@ -531,8 +556,8 @@ resolveTwoLiteralSets ls1 ls2 = _resolveTwoLiteralSets ls1 [] ls2
 
 resolve1on1Clause :: ClauseRecord -> ClauseRecord -> ResolveResult
 resolve1on1Clause clause1 clause2 = 
-  let relationsInClause1 = relationSet clause1
-      relationsInClause2 = relationSet clause2
+  let relationsInClause1 = relationSet (trace' "------ \n clause1: " clause1)
+      relationsInClause2 = relationSet (trace' "clause2: " clause2)
       (Clause literalsInC1, Clause literalsInC2) = (claus clause1, claus clause2)
       commonRelations = HashSet.intersection relationsInClause1 relationsInClause2
   in 
@@ -566,7 +591,7 @@ resolveClausePairs clausePairs clauseSet =
     ((clause1, clause2) : restClausePairs) -> 
       let resolveResultOfThePair = resolve1on1Clause clause1 clause2
       in
-        case resolveResultOfThePair of 
+        case (trace' "resolve result: "  resolveResultOfThePair) of 
           IRRESOLVABLE -> resolveClausePairs restClausePairs clauseSet
           RESOLVABLE Nothing -> (clausePairs, clauseSet, RESOLVABLE Nothing) -- found contradictions, return
           RESOLVABLE (Just newClauseRecord) -> 

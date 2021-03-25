@@ -99,3 +99,32 @@ main = do
 -- print ("After distribution: "++ show (distributeANDOR aAndBOrC))
 -- print (formula == (NOT formula1))
 -- print ((AND formulaA formulaB)==(AND formulaB formulaA))
+  print "test resoltion -----------------------"
+  let isBarber = Relation "isBarber" 1
+  let shaves = Relation "shaves" 2
+  let bx = AtomicFormula isBarber [vx]
+  let syy = AtomicFormula shaves [vy, vy]
+  let sxy = AtomicFormula shaves [vx, vy]
+  let someone = ConstTerm (ExistConst "someone")
+  -- let clause1 = Clause [Literal (NOT ((AtomicFormula p [ty, ConstTerm (Constant "F")])))]
+  -- let clause2 = Clause [Literal (AtomicFormula p [ConstTerm (Constant "E"), tx])]
+  
+  -- let p = Relation "P" 1
+  -- let q = Relation "Q" 1
+
+  -- let clause1 = Clause [Literal (AtomicFormula q [tx]), Literal (NOT(AtomicFormula p [tx]))]
+  -- let clause2 = Clause [Literal (AtomicFormula p [ty])]
+  -- let clause3 = Clause [Literal (NOT(AtomicFormula q [ConstTerm (Constant "F")]))]
+
+  let clause1 = Clause [Literal (NOT bx), Literal syy, Literal sxy]
+  let clause2 = Clause [Literal (NOT bx), Literal (NOT syy), Literal (NOT sxy)]
+  let queryClause = Clause [Literal (AtomicFormula isBarber [someone])]
+
+  -- let clausen = Clause [Literal (AtomicFormula shaves [vx, vy]), Literal (NOT ((AtomicFormula shaves [vx, vy])))]
+  -- let queryClause = 
+  let clauses = [clause1, clause2, queryClause]
+  -- let clauses = [clausen, clausen]
+  let resolveResult = resolveClauses clauses
+  print resolveResult
+  print "--------"
+
