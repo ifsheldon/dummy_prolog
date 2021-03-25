@@ -6,6 +6,8 @@ module SigmaSignature
     Relation (..),
     Formula (..),
     Quantifier (..),
+    Signature(..),
+    validateSignature,
     validateFormula,
     validateTerm,
     validateTerms,
