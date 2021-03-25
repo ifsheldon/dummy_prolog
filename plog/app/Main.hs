@@ -2,7 +2,6 @@ module Main where
 
 import Algorithms
 import Data.HashMap.Strict as HashMap
-import Lib
 import SigmaSignature
 import Literals
 
