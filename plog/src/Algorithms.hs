@@ -58,7 +58,7 @@ stripArrows formula = case formula of
       sf1 = stripArrows f1
   NOT f -> _negateFormula (stripArrows f)
   st1 `AND` st2 -> stripArrows st1 `AND` stripArrows st2
-  st1 `OR` st2 -> stripArrows st1 `AND` stripArrows st2
+  st1 `OR` st2 -> stripArrows st1 `OR` stripArrows st2
   QFormula quantifier var f -> QFormula quantifier var (stripArrows f)
   _ -> formula
 
