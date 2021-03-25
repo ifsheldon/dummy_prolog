@@ -107,7 +107,10 @@ validateTerm signature term = case term of
 _validateTerms :: Signature -> Bool -> [Term] -> Bool
 _validateTerms signature isValidUntilNow terms =
   if isValidUntilNow
-    then let (t : ts) = terms in _validateTerms signature (validateTerm signature t) ts
+    then 
+      case terms of 
+        [] -> isValidUntilNow
+        (t:ts) -> _validateTerms signature (validateTerm signature t) ts
     else False
 
 validateTerms :: Signature -> [Term] -> Bool
