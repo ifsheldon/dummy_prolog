@@ -22,7 +22,9 @@ import Data.Hashable
 
 import Debug.Trace (trace)
 
-_trace msg arg = trace (msg ++ show arg) arg
+-- uncomment below only when debug
+-- _trace msg arg = trace (msg ++ show arg) arg
+_trace msg arg = arg
 
 ------------------ This part is for CNF conversion
 ------------------
