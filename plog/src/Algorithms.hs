@@ -15,7 +15,9 @@ module Algorithms
     applySubstitutionOnLiteral,
     applySubstitutionOnOneTerm,
     resolveClauses,
-    ResolveResult(..)
+    ResolveResult(..),
+    _getClausesFromFormula,
+    getClausesFromFormula
   )
 where
 
@@ -27,9 +29,8 @@ import SigmaSignature
 import Data.HashSet as HashSet
 import Data.Hashable
 
-import Debug.Trace (traceShow, trace)
+import Debug.Trace (trace)
 
-traceShow' msg arg = traceShow arg arg
 trace' msg arg = trace (msg ++ show arg) arg
 
 ------------------ This part is for CNF conversion
@@ -617,3 +618,21 @@ resolveClauses clauses =
         case resolveResult of 
           IRRESOLVABLE -> IRRESOLVABLE
           RESOLVABLE Nothing -> RESOLVABLE Nothing
+
+------------------ This part is for FOL resolution integration
+------------------
+
+_getClausesFromFormula :: Formula -> [Clause]
+_getClausesFromFormula formula = 
+  let strippedArrowFormula = trace' "\nAfter eliminating arrows: " (stripArrows formula)
+      standardizedFormula = trace' "\nAfter standardization: "(standardize strippedArrowFormula)
+      eliminatedExistFormula = trace' "\nAfter eliminating Existentials: " (eliminateExistentialInFormula standardizedFormula)
+      droppedUniversalFormula = trace' "\nAfter dropping Universals: " (dropUniversals eliminatedExistFormula)
+      distributedANDORFormula = trace' "After distributing AND OR: " (distributeANDOR droppedUniversalFormula)
+      removedDuplicateFormula = trace' "After naively remove duplications: " (naiveRemoveDuplicate distributedANDORFormula)
+  in fromCNFFormulaToClauses removedDuplicateFormula
+
+getClausesFromFormula :: Formula -> [Clause]
+getClausesFromFormula = 
+  fromCNFFormulaToClauses . naiveRemoveDuplicate 
+    . distributeANDOR . dropUniversals . eliminateExistentialInFormula . standardize . stripArrows
