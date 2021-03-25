@@ -18,7 +18,7 @@ module Algorithms
 where
 
 import Data.HashMap.Strict as HashMap
-import Data.List (elemIndex)
+import Data.List (elemIndex, subsequences)
 import Data.Maybe
 import Literals
 import SigmaSignature
@@ -553,30 +553,42 @@ resolve1on1Clause clause1 clause2 =
       else -- if not having common relations, two clauses for sure cannot resolve
         IRRESOLVABLE
 
-resolve :: ClauseRecord -> [ClauseRecord] -> Maybe [ClauseRecord]
-resolve clause toResolveClauses = 
-  case toResolveClauses of 
-    [] -> Just [] -- todo: check this logic
-    (c : trcs) ->
-      let resolveResult = resolve1on1Clause clause c
-      in 
-        case resolveResult of
-          IRRESOLVABLE -> Just [] 
-          RESOLVABLE resolvedClause ->
-            case resolvedClause of
-              Nothing -> Nothing -- resolution succeeded
-              Just resultedClause -> Nothing -- TODO
+allcombinations :: [ClauseRecord] -> [(ClauseRecord, ClauseRecord)]
+allcombinations clauses = Prelude.map (\x -> (x !! 0, x !! 1)) (Prelude.filter ((2==).length) (subsequences clauses))
 
-resolveClauses :: [Clause] -> Maybe [Clause]
+genCombinations :: ClauseRecord -> [ClauseRecord] -> [(ClauseRecord, ClauseRecord)]
+genCombinations newClause existingClauses = Prelude.map (\claus -> (newClause, claus)) existingClauses
+
+resolveClausePairs :: [(ClauseRecord, ClauseRecord)] -> HashSet ClauseRecord -> ([(ClauseRecord, ClauseRecord)], HashSet ClauseRecord, ResolveResult)
+resolveClausePairs clausePairs clauseSet = 
+  case clausePairs of 
+    [] -> (clausePairs, clauseSet, IRRESOLVABLE)
+    ((clause1, clause2) : restClausePairs) -> 
+      let resolveResultOfThePair = resolve1on1Clause clause1 clause2
+      in
+        case resolveResultOfThePair of 
+          IRRESOLVABLE -> resolveClausePairs restClausePairs clauseSet
+          RESOLVABLE Nothing -> (clausePairs, clauseSet, RESOLVABLE Nothing) -- found contradictions, return
+          RESOLVABLE (Just newClauseRecord) -> 
+            if newClauseRecord `HashSet.member` clauseSet
+              then resolveClausePairs restClausePairs clauseSet
+            else
+              let newClauseSet = HashSet.insert newClauseRecord clauseSet
+                  newClausePairs = restClausePairs ++ genCombinations newClauseRecord (HashSet.toList clauseSet)
+              in resolveClausePairs newClausePairs newClauseSet
+
+
+resolveClauses :: [Clause] -> ResolveResult
 resolveClauses clauses =
   if _checkAloneRelation clauses then
-    Just [] -- if clauses containing one or more relations that occur once, cannot resolve, return []
+    IRRESOLVABLE -- if clauses containing one or more relations that occur once, cannot resolve, return []
   else 
     let clauseRecordList = Prelude.map clauseToCR clauses
-        numClauses = length clauseRecordList
-        indices = [0,1..(numClauses-1)]
-        crWithIdx = zip indices clauseRecordList
-        toDoList = Prelude.map (\(idx, cr)-> let toResolveCRs = Prelude.filter (\(cridx, _) -> cridx /= idx) crWithIdx in (cr, toResolveCRs)) crWithIdx
-        toDoMap = HashMap.fromList toDoList
+        clauseRecordSet = HashSet.fromList clauseRecordList
+        initialCombinations = allcombinations clauseRecordList
     in
-      Nothing -- TODO
+      let (_, _, resolveResult) = resolveClausePairs initialCombinations clauseRecordSet
+      in 
+        case resolveResult of 
+          IRRESOLVABLE -> IRRESOLVABLE
+          RESOLVABLE Nothing -> RESOLVABLE Nothing
