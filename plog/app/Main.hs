@@ -16,7 +16,6 @@ main = do
   let bx = AtomicFormula isBarber [vx]
   let syy = AtomicFormula shaves [vy, vy]
   let sxy = AtomicFormula shaves [vx, vy]
-  let someone = ConstTerm (ExistConst "someone")
   let formulaA = forall x (forall y ((bx `AND` (NOT syy)) `IMPLY` sxy))
   let formulaB = NOT (exist x (exist y ((bx `AND` syy) `AND` sxy)))
   let query = NOT (exist x bx)
