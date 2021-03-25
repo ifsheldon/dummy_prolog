@@ -1,5 +1,8 @@
 module Theories
-  ( Theory,
+  ( Theory(..),
+    fromFormulaTheoryToClauseTheory,
+    validateFormulaTheory,
+    queryWithTheory,
   )
 where
 
