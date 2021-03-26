@@ -43,8 +43,8 @@ _negateFormula formula =
       NOT subformula -> subformula
       st1 `OR` st2 -> _negateFormula st1 `AND` _negateFormula st2
       st1 `AND` st2 -> _negateFormula st1 `OR` _negateFormula st2
-      st1 `IMPLY` st2 -> _negateFormula (stripArrows (st1 `IMPLY` st2))
-      st1 `EQUIV` st2 -> _negateFormula (stripArrows (st1 `EQUIV` st2))
+      st1 `IMPLY` st2 -> _negateFormula (stripArrows formula)
+      st1 `EQUIV` st2 -> _negateFormula (stripArrows formula)
       QFormula FORALL var f -> QFormula EXIST var (_negateFormula f)
       QFormula EXIST var f -> QFormula FORALL var (_negateFormula f)
       _ -> NOT formula
@@ -610,8 +610,8 @@ _getClausesFromFormula formula =
       standardizedFormula = _trace "\nAfter standardization: "(standardize strippedArrowFormula)
       eliminatedExistFormula = _trace "\nAfter eliminating Existentials: " (eliminateExistentialInFormula standardizedFormula)
       droppedUniversalFormula = _trace "\nAfter dropping Universals: " (dropUniversals eliminatedExistFormula)
-      distributedANDORFormula = _trace "After distributing AND OR: " (distributeANDOR droppedUniversalFormula)
-      removedDuplicateFormula = _trace "After naively remove duplications: " (naiveRemoveDuplicate distributedANDORFormula)
+      distributedANDORFormula = _trace "\nAfter distributing AND OR: " (distributeANDOR droppedUniversalFormula)
+      removedDuplicateFormula = _trace "\nAfter naively remove duplications: " (naiveRemoveDuplicate distributedANDORFormula)
   in fromCNFFormulaToClauses removedDuplicateFormula
 
 getClausesFromFormula :: Formula -> [Clause]
