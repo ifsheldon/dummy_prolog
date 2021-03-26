@@ -9,8 +9,11 @@ import Theories
 main = do
   let x = Variable "x"
   let y = Variable "y"
+  let z = Variable "z"
   let vx = VarTerm x
   let vy = VarTerm y
+  let vz = VarTerm z
+  print "Testing using the example in Worksheet 2 Q4 : Barbershop ----------------------"
   let isBarber = Relation "isBarber" 1
   let shaves = Relation "shaves" 2
   let barberSignature = Signature {constants = HashSet.empty, functions = HashSet.empty, relations = HashSet.fromList [isBarber, shaves]}
@@ -43,4 +46,30 @@ main = do
   let isBarberTheoryValid = validateFormulaTheory barberSignature barberTheory
   print ("barber theory is valid w.r.t barber signature: " ++ show isBarberTheoryValid)
   let queryResult = queryWithTheory barberTheory query
-  print queryResult
+  print queryResult -- RESOLVABLE Nothing means a contradiction is found
+
+  -- descendant
+  print "Testing using the example in Worksheet 2 Q5 : Descendant -------------------------"
+  let child = Relation "Child" 2
+  let descendant = Relation "Descendant" 2
+  let anna = ConstTerm (Constant "Anna")
+  let peter = ConstTerm (Constant "Peter")
+  let hans = ConstTerm (Constant "Hans")
+  let child_peter_anna = AtomicFormula child [peter, anna]
+  let child_anna_hans = AtomicFormula child [anna, hans]
+  let child_x_y = AtomicFormula child [vx, vy]
+  let child_x_z = AtomicFormula child [vx, vz]
+  let descendant_z_y = AtomicFormula descendant [vz, vy]
+  let descendant_x_y = AtomicFormula descendant [vx, vy]
+  let descendantDef = forall x (forall y ( (child_x_y `OR` (exist z (child_x_z `AND` descendant_z_y))) `IMPLY` descendant_x_y ))
+  let descendantQuery = AtomicFormula descendant [peter, hans]
+  
+  print "Original Formulas: -----------------------"
+  print child_anna_hans
+  print child_peter_anna
+  print descendantDef
+  print descendantQuery
+
+  let descendantTheory = FormulaTheory [descendantDef, child_peter_anna, child_anna_hans]
+  let descendantQueryResult = queryWithTheory descendantTheory descendantQuery
+  print descendantQueryResult
