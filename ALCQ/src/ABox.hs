@@ -7,6 +7,7 @@ module ABox
 where
 
 import Data.Hashable
+import Data.HashSet as HashSet
 
 data Individual = Individual [Char] deriving (Show)
 
@@ -57,3 +58,7 @@ instance Hashable Assertion where
   hashWithSalt salt assertion = case assertion of
     RAssert r i1 i2 -> hashWithSalt salt r + hashWithSalt salt i1 + hashWithSalt salt i2 * 3
     CAssert c i -> hashWithSalt salt c + hashWithSalt salt i
+    
+data ABox = Abox (HashSet Assertion)
+
+data Tbox = Tbox (HashSet Concept)
