@@ -8,18 +8,18 @@ where
 
 import Data.Hashable
 
-data Individual = Individual [Char] [Char] deriving (Show)
+data Individual = Individual [Char] deriving (Show)
 
 instance Eq Individual where
   i1 == i2 =
-    let (Individual _ interpretationName1) = i1
-        (Individual _ interpretationName2) = i2
-     in interpretationName1 == interpretationName2
+    let (Individual name1) = i1
+        (Individual name2) = i2
+     in name1 == name2
 
 instance Hashable Individual where
   hashWithSalt salt individual =
-    let (Individual _ interpretation) = individual
-     in hashWithSalt salt interpretation -- FIXME: which field to hash?
+    let (Individual name) = individual
+     in hashWithSalt salt name
 
 data Relation = Relation [Char] deriving (Show, Eq)
 
