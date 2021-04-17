@@ -87,6 +87,42 @@ constructABRFromABox abox =
       emptyABR = ABR HashMap.empty []
    in HashSet.foldr addAssertionToABR emptyABR assertionSet
 
+--foldr :: (b -> a -> a) -> a -> HashSet b -> a
+applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
+applyAndRuleForOneABox abr =
+  let runningRecord = (abr, False)
+   in Prelude.foldr
+        ( \concept_assert (intermediateAbr, applied) -> case concept_assert of
+            CAssert (And c1 c2) individual ->
+              let concept_assertion_list = conceptAssertionList intermediateAbr
+                  c1Assertion = CAssert c1 individual
+                  c2Assertion = CAssert c2 individual
+                  c1InList = c1Assertion `elem` concept_assertion_list
+                  listAfterCheckingC1 = if c1InList then concept_assertion_list else c1Assertion : concept_assertion_list
+                  c2InList = c2Assertion `elem` listAfterCheckingC1
+                  listAfterCheckingC2 = if c2InList then listAfterCheckingC1 else c2Assertion : listAfterCheckingC1
+               in (ABR (relationMapping intermediateAbr) listAfterCheckingC2, not (c1InList && c2InList))
+            _ -> (intermediateAbr, applied)
+        )
+        runningRecord
+        (conceptAssertionList abr)
+
+applyAndRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyAndRule abrs =
+  case abrs of
+    [] -> ([], False)
+    _ ->
+      let (newAbrs, appliedResults) = unzip (Prelude.map applyAndRuleForOneABox abrs)
+       in (newAbrs, or appliedResults)
+
+--applyRules :: [ABoxRecord] -> ([ABoxRecord], Bool)
+--applyRules abrs =
+--  let (abrsAfterAndRule, appliedAndRule) = applyAndRule
+--      (abrsAfterOrRule, appliedOrRule) = applyOrRule
+--      (abrsAfterForallRule, appliedForallRule) = applyForallRule
+--      (abrsAfterExistRule, appliedExistRule) = applyExistRule
+--  in ([], False)
+
 tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
   let aboxRecord = constructABRFromABox abox
