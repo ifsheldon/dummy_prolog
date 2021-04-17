@@ -87,7 +87,6 @@ constructABRFromABox abox =
       emptyABR = ABR HashMap.empty []
    in HashSet.foldr addAssertionToABR emptyABR assertionSet
 
---foldr :: (b -> a -> a) -> a -> HashSet b -> a
 applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
 applyAndRuleForOneABox abr =
   let runningRecord = (abr, False)
@@ -113,6 +112,43 @@ applyAndRule abrs =
     [] -> ([], False)
     _ ->
       let (newAbrs, appliedResults) = unzip (Prelude.map applyAndRuleForOneABox abrs)
+       in (newAbrs, or appliedResults)
+
+findOrRuleApplicable :: [Assertion] -> [Assertion] -> Maybe Assertion
+findOrRuleApplicable assertionList runningList = case runningList of
+  [] -> Nothing
+  (a : as) -> case a of
+    CAssert (Or c1 c2) individual ->
+      let c1Assertion = CAssert c1 individual
+          c2Assertion = CAssert c2 individual
+          c1InList = c1Assertion `elem` assertionList
+          c2InList = c2Assertion `elem` assertionList
+       in if (not c1InList) && (not c2InList)
+            then Just a
+            else findOrRuleApplicable assertionList as
+    _ -> findOrRuleApplicable assertionList as
+
+applyOrRuleForOneABox :: ABoxRecord -> ([ABoxRecord], Bool)
+applyOrRuleForOneABox abr =
+  let assertionList = conceptAssertionList abr
+      relationMap = relationMapping abr
+      applicableAssertion = findOrRuleApplicable assertionList assertionList
+   in case applicableAssertion of
+        Nothing -> ([abr], False)
+        Just (CAssert (Or c1 c2) individual) ->
+          let c1Assertion = CAssert c1 individual
+              c2Assertion = CAssert c2 individual
+              newAbr1 = ABR relationMap (c1Assertion : assertionList)
+              newAbr2 = ABR relationMap (c2Assertion : assertionList)
+           in ([newAbr1, newAbr2], True)
+
+applyOrRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyOrRule abrs =
+  case abrs of
+    [] -> ([], False)
+    _ ->
+      let (listOfnewAbrs, appliedResults) = unzip (Prelude.map applyOrRuleForOneABox abrs)
+          newAbrs = concat listOfnewAbrs
        in (newAbrs, or appliedResults)
 
 --applyRules :: [ABoxRecord] -> ([ABoxRecord], Bool)
