@@ -3,6 +3,8 @@ module ABox
     Relation (..),
     Concept (..),
     Assertion (..),
+    ABox(..),
+    TBox(..)
   )
 where
 
@@ -61,4 +63,4 @@ instance Hashable Assertion where
     
 data ABox = Abox (HashSet Assertion)
 
-data Tbox = Tbox (HashSet Concept)
+data TBox = Tbox (HashSet Concept)
