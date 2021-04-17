@@ -151,6 +151,41 @@ applyOrRule abrs =
           newAbrs = concat listOfnewAbrs
        in (newAbrs, or appliedResults)
 
+applyForallRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
+applyForallRuleForOneABox abr =
+  let initialRecord = (abr, False)
+   in Prelude.foldr
+        ( \concept_assert (intermediateAbr, applied) -> case concept_assert of
+            CAssert (Forall relation concept) individual ->
+              let relationMap = relationMapping intermediateAbr
+                  concept_assertion_list = conceptAssertionList intermediateAbr
+                  maybeIndividualMap = HashMap.lookup relation relationMap
+               in case maybeIndividualMap of
+                    Nothing -> (intermediateAbr, applied) -- relation not found in relation map, meaning no assertion about this relation
+                    Just individualMap ->
+                      -- relation found, then check if `individual` has some assertions, r(individual, someone)
+                      let maybeIndividualSet = HashMap.lookup individual individualMap
+                       in case maybeIndividualSet of
+                            Nothing -> (intermediateAbr, applied) -- no r(individual, someone) in ABox
+                            Just individualSet ->
+                              -- found someone, such that r(individual, someone) in ABox
+                              let assertions = Prelude.map (CAssert concept) (HashSet.toList individualSet)
+                                  applicableAssertions = Prelude.filter (`notElem` concept_assertion_list) assertions
+                                  newConceptAssertionList = concept_assertion_list ++ applicableAssertions
+                               in (ABR relationMap newConceptAssertionList, True)
+            _ -> (intermediateAbr, applied)
+        )
+        initialRecord
+        (conceptAssertionList abr)
+
+applyForallRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyForallRule abrs =
+  case abrs of
+    [] -> ([], False)
+    _ ->
+      let (newAbrs, appliedResults) = unzip (Prelude.map applyForallRuleForOneABox abrs)
+       in (newAbrs, or appliedResults)
+
 --applyRules :: [ABoxRecord] -> ([ABoxRecord], Bool)
 --applyRules abrs =
 --  let (abrsAfterAndRule, appliedAndRule) = applyAndRule
