@@ -1,16 +1,20 @@
-module Algorithms where
+module Algorithms
+  ( stripArrows,
+  )
+where
+
 import ABox
 
 stripDoubleNot :: Concept -> Concept
-stripDoubleNot concept = 
-  case concept of 
+stripDoubleNot concept =
+  case concept of
     Not (Not c) -> stripDoubleNot c
     Forall r c -> Forall r (stripDoubleNot c)
     Exist r c -> Exist r (stripDoubleNot c)
     _ -> concept
 
 stripArrows :: Concept -> Concept
-stripArrows concept = case concept of 
+stripArrows concept = case concept of
   Imply c1 c2 -> negateConcept (stripArrows c1) `Or` stripArrows c2
   Equiv c1 c2 -> stripArrows (Imply c1 c2) `And` stripArrows (Imply c2 c1)
   Not c -> negateConcept (stripArrows c)
@@ -19,10 +23,10 @@ stripArrows concept = case concept of
   Forall r c -> Forall r (stripArrows c)
   Exist r c -> Exist r (stripArrows c)
   _ -> concept
-  
+
 negateConcept :: Concept -> Concept
 negateConcept concept = stripDoubleNot intermediate
-  where 
+  where
     intermediate = case concept of
       Not c -> c
       And c1 c2 -> Or (negateConcept c1) (negateConcept c2)
