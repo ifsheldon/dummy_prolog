@@ -3,21 +3,15 @@ module ABox
     Relation (..),
     Concept (..),
     Assertion (..),
-    ABox(..),
-    TBox(..)
+    ABox (..),
+    TBox (..),
   )
 where
 
-import Data.Hashable
 import Data.HashSet as HashSet
+import Data.Hashable
 
-data Individual = Individual [Char] deriving (Show)
-
-instance Eq Individual where
-  i1 == i2 =
-    let (Individual name1) = i1
-        (Individual name2) = i2
-     in name1 == name2
+data Individual = Individual [Char] deriving (Show, Eq)
 
 instance Hashable Individual where
   hashWithSalt salt individual =
@@ -38,7 +32,19 @@ data Concept
   | Equiv Concept Concept
   | Forall Relation Concept
   | Exist Relation Concept
-  deriving (Show, Eq)
+  deriving (Show)
+
+instance Eq Concept where
+  c1 == c2 = case (c1, c2) of
+    (Not sc1, Not sc2) -> sc1 == sc2
+    (And sc11 sc12, And sc21 sc22) -> (sc11 == sc21 && sc12 == sc22) || (sc11 == sc22 && sc12 == sc21)
+    (Or sc11 sc12, Or sc21 sc22) -> (sc11 == sc21 && sc12 == sc22) || (sc11 == sc22 && sc12 == sc21)
+    (Equiv sc11 sc12, Equiv sc21 sc22) -> (sc11 == sc21 && sc12 == sc22) || (sc11 == sc22 && sc12 == sc21)
+    (Imply sc11 sc12, Imply sc21 sc22) -> sc11 == sc21 && sc12 == sc22
+    (Primitive name1, Primitive name2) -> name1 == name2
+    (Forall r1 sc1, Forall r2 sc2) -> r1 == r2 && sc1 == sc2
+    (Exist r1 sc1, Exist r2 sc2) -> r1 == r2 && sc1 == sc2
+    _ -> False
 
 instance Hashable Concept where
   hashWithSalt salt concept =
@@ -60,7 +66,7 @@ instance Hashable Assertion where
   hashWithSalt salt assertion = case assertion of
     RAssert r i1 i2 -> hashWithSalt salt r + hashWithSalt salt i1 + hashWithSalt salt i2 * 3
     CAssert c i -> hashWithSalt salt c + hashWithSalt salt i
-    
+
 data ABox = Abox (HashSet Assertion)
 
 data TBox = Tbox (HashSet Concept)
