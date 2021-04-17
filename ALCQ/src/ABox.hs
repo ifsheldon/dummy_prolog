@@ -34,4 +34,4 @@ data Concept
   | Exist Relation Concept
   deriving (Show, Eq)
 
-data Assertion = RAssertion Individual Individual | CAssertion Concept Individual
+data Assertion = RAssertion Relation Individual Individual | CAssertion Concept Individual
