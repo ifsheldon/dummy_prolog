@@ -8,3 +8,5 @@ main = do
   let graduateStudent = And student graduate
   let notGS = Not graduateStudent
   print notGS
+  let nnfGS = toNNF notGS
+  print nnfGS

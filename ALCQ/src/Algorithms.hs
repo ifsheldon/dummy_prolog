@@ -1,5 +1,5 @@
 module Algorithms
-  ( stripArrows,
+  ( toNNF,
   )
 where
 
@@ -23,6 +23,8 @@ stripArrows concept = case concept of
   Forall r c -> Forall r (stripArrows c)
   Exist r c -> Exist r (stripArrows c)
   _ -> concept
+
+toNNF = stripArrows
 
 negateConcept :: Concept -> Concept
 negateConcept concept = stripDoubleNot intermediate
