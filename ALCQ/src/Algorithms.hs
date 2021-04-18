@@ -301,7 +301,7 @@ _tableauAlgorithmForTest max_loop_num loop_count abrs counter =
   let (newAbrs, appliedRule, newCounter) = applyRules abrs counter
    in if appliedRule /= NONE && loop_count < max_loop_num
         then _tableauAlgorithmForTest max_loop_num (loop_count + 1) newAbrs newCounter
-        else (newAbrs, newCounter, loop_count < max_loop_num)
+        else (newAbrs, newCounter, loop_count >= max_loop_num)
 
 tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
