@@ -1,5 +1,12 @@
 module Algorithms
   ( toNNF,
+    constructABRFromABox,
+    ABoxRecord (..),
+    applyExistRule,
+    applyForallRule,
+    applyAndRule,
+    applyOrRule,
+    tableauAlgorithm,
   )
 where
 
@@ -251,7 +258,34 @@ applyRules abrs counter =
       (abrsAfterExistRule, appliedExistRule, afterCounter) = applyExistRule abrsAfterForallRule counter
    in (abrsAfterExistRule, or [appliedAndRule, appliedExistRule, appliedOrRule, appliedForallRule], afterCounter)
 
+checkABox :: HashSet Assertion -> [Assertion] -> Bool
+checkABox c_assertion_set c_assertions =
+  case c_assertions of
+    [] -> True
+    (a : as) ->
+      let CAssert concept individual = a
+          negated_assertion = CAssert (negateConcept concept) individual
+       in not (HashSet.member negated_assertion c_assertion_set) && checkABox (HashSet.insert a c_assertion_set) as
+
+checkABoxes :: [ABoxRecord] -> Bool
+checkABoxes = any (checkABox HashSet.empty . conceptAssertionList)
+
+_tableauAlgorithm :: [ABoxRecord] -> Int -> ([ABoxRecord], Int)
+_tableauAlgorithm abrs counter =
+  let (newAbrs, anyRuleApplied, newCounter) = applyRules abrs counter
+   in if anyRuleApplied
+        then _tableauAlgorithm newAbrs newCounter
+        else (newAbrs, newCounter)
+
+_tableauAlgorithmForTest :: Int -> Int -> [ABoxRecord] -> Int -> ([ABoxRecord], Int)
+_tableauAlgorithmForTest max_loop_num loop_count abrs counter =
+  let (newAbrs, anyRuleApplied, newCounter) = applyRules abrs counter
+   in if anyRuleApplied && loop_count < max_loop_num
+        then _tableauAlgorithmForTest max_loop_num (loop_count + 1) newAbrs newCounter
+        else (newAbrs, newCounter)
+
 tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
   let aboxRecord = constructABRFromABox abox
-   in False --TODO
+      (finalAbrs, _) = _tableauAlgorithm [aboxRecord] 0
+   in checkABoxes finalAbrs
