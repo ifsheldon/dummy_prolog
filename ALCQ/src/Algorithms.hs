@@ -8,6 +8,7 @@ module Algorithms
     applyOrRule,
     tableauAlgorithm,
     _tableauAlgorithmForTest,
+    applyRules,
   )
 where
 
@@ -64,6 +65,8 @@ data ABoxRecord = ABR
     conceptAssertionList :: [Assertion]
   }
   deriving (Show)
+
+data Rule = EXIST | FORALL | OR | AND | NONE deriving (Eq, Show)
 
 insertRAssertionIntoRelationMap :: Assertion -> HashMap Relation (HashMap Individual (HashSet Individual)) -> HashMap Relation (HashMap Individual (HashSet Individual))
 insertRAssertionIntoRelationMap r_assertion relationMap =
@@ -255,13 +258,24 @@ applyExistRule abrs counter =
           (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs seqence)
        in (newAbrs, or appliedResults, counter + abrNum)
 
-applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
+applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Rule, Int)
 applyRules abrs counter =
-  let (abrsAfterAndRule, appliedAndRule) = applyAndRule abrs
-      (abrsAfterOrRule, appliedOrRule) = applyOrRule abrsAfterAndRule
-      (abrsAfterForallRule, appliedForallRule) = applyForallRule abrsAfterOrRule
-      (abrsAfterExistRule, appliedExistRule, afterCounter) = applyExistRule abrsAfterForallRule counter
-   in (abrsAfterExistRule, or [appliedAndRule, appliedExistRule, appliedOrRule, appliedForallRule], afterCounter)
+  let (abrsAfterAndRule, andRuleApplicable) = applyAndRule abrs
+      (abrsAfterOrRule, orRuleApplicable) = applyOrRule abrs
+      (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
+      (abrsAfterExistRule, existRuleApplicable, newCounter) = applyExistRule abrs counter
+   in if andRuleApplicable
+        then (abrsAfterAndRule, AND, counter)
+        else
+          if forallRuleApplicable
+            then (abrsAfterForallRule, FORALL, counter)
+            else
+              if orRuleApplicable
+                then (abrsAfterOrRule, OR, counter)
+                else
+                  if existRuleApplicable
+                    then (abrsAfterExistRule, EXIST, newCounter)
+                    else (abrs, NONE, counter)
 
 checkABox :: HashSet Assertion -> [Assertion] -> Bool
 checkABox c_assertion_set c_assertions =
@@ -277,17 +291,17 @@ checkABoxes = any (checkABox HashSet.empty . conceptAssertionList)
 
 _tableauAlgorithm :: [ABoxRecord] -> Int -> ([ABoxRecord], Int)
 _tableauAlgorithm abrs counter =
-  let (newAbrs, anyRuleApplied, newCounter) = applyRules abrs counter
-   in if anyRuleApplied
-        then _tableauAlgorithm newAbrs newCounter
-        else (newAbrs, newCounter)
+  let (newAbrs, appliedRule, newCounter) = applyRules abrs counter
+   in if appliedRule == NONE
+        then (newAbrs, newCounter)
+        else _tableauAlgorithm newAbrs newCounter
 
-_tableauAlgorithmForTest :: Int -> Int -> [ABoxRecord] -> Int -> ([ABoxRecord], Int)
+_tableauAlgorithmForTest :: Int -> Int -> [ABoxRecord] -> Int -> ([ABoxRecord], Int, Bool)
 _tableauAlgorithmForTest max_loop_num loop_count abrs counter =
-  let (newAbrs, anyRuleApplied, newCounter) = applyRules abrs counter
-   in if anyRuleApplied && loop_count < max_loop_num
+  let (newAbrs, appliedRule, newCounter) = applyRules abrs counter
+   in if appliedRule /= NONE && loop_count < max_loop_num
         then _tableauAlgorithmForTest max_loop_num (loop_count + 1) newAbrs newCounter
-        else (newAbrs, newCounter)
+        else (newAbrs, newCounter, loop_count < max_loop_num)
 
 tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
