@@ -10,6 +10,7 @@ module Algorithms
     _tableauAlgorithmForTest,
     applyRules,
     checkABoxes,
+    querySubsumption,
   )
 where
 
@@ -310,3 +311,10 @@ tableauAlgorithm abox =
   let aboxRecord = constructABRFromABox abox
       (finalAbrs, _) = _tableauAlgorithm [aboxRecord] 0
    in checkABoxes finalAbrs
+
+querySubsumption :: [Concept] -> Concept -> Bool
+querySubsumption concepts query =
+  let with_query_concepts = negateConcept query : concepts
+      assertion_set = HashSet.fromList (Prelude.map (\concept -> CAssert concept (Individual "a")) with_query_concepts)
+      abox = Abox assertion_set
+   in tableauAlgorithm abox
