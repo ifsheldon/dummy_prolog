@@ -7,13 +7,17 @@ module Algorithms
     applyAndRule,
     applyOrRule,
     tableauAlgorithm,
+    _tableauAlgorithmForTest,
   )
 where
 
 import ABox
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
+import Debug.Trace (trace)
 import Numeric (showHex)
+
+_trace msg arg = trace (msg ++ show arg) arg
 
 stripDoubleNot :: Concept -> Concept
 stripDoubleNot concept =
@@ -59,6 +63,7 @@ data ABoxRecord = ABR
   { relationMapping :: HashMap Relation (HashMap Individual (HashSet Individual)),
     conceptAssertionList :: [Assertion]
   }
+  deriving (Show)
 
 insertRAssertionIntoRelationMap :: Assertion -> HashMap Relation (HashMap Individual (HashSet Individual)) -> HashMap Relation (HashMap Individual (HashSet Individual))
 insertRAssertionIntoRelationMap r_assertion relationMap =
@@ -98,7 +103,7 @@ constructABRFromABox abox =
   let Abox assertionSet = abox
       nnfAssertionSet = HashSet.map toNNFAssertion assertionSet
       emptyABR = ABR HashMap.empty []
-   in HashSet.foldr addAssertionToABR emptyABR assertionSet
+   in HashSet.foldr addAssertionToABR emptyABR nnfAssertionSet
 
 applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
 applyAndRuleForOneABox abr =
