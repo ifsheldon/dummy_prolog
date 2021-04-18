@@ -207,10 +207,10 @@ applyForallRule abrs =
       let (newAbrs, appliedResults) = unzip (Prelude.map applyForallRuleForOneABox abrs)
        in (newAbrs, or appliedResults)
 
-findOneApplicableAssertionForExistRule :: ABoxRecord -> Maybe Assertion
-findOneApplicableAssertionForExistRule abr =
+findOneApplicableAssertionForExistRule :: ABoxRecord -> [Assertion] -> Maybe Assertion
+findOneApplicableAssertionForExistRule abr running_assertion_list =
   let ABR relation_map assertion_list = abr
-   in case assertion_list of
+   in case running_assertion_list of
         [] -> Nothing
         (a : as) -> case a of
           (CAssert (Exist relation concept) individual) ->
@@ -230,14 +230,14 @@ findOneApplicableAssertionForExistRule abr =
                         noC = not (any (`elem` assertion_list) assertions)
                      in if noC
                           then Just a
-                          else findOneApplicableAssertionForExistRule (ABR relation_map as)
-          _ -> findOneApplicableAssertionForExistRule (ABR relation_map as)
+                          else findOneApplicableAssertionForExistRule abr as
+          _ -> findOneApplicableAssertionForExistRule abr as
 
 applyExistRuleForOneABox :: ABoxRecord -> Int -> (ABoxRecord, Bool)
 applyExistRuleForOneABox abr order =
   let newIndividual = Individual ("#" ++ showHex order "")
-      maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr
       concept_assertion_list = conceptAssertionList abr
+      maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr concept_assertion_list
       relation_map = relationMapping abr
    in case maybeApplicableAssertion of
         Nothing -> (abr, False)
@@ -298,7 +298,8 @@ _tableauAlgorithm abrs counter =
 
 _tableauAlgorithmForTest :: Int -> Int -> [ABoxRecord] -> Int -> ([ABoxRecord], Int, Bool)
 _tableauAlgorithmForTest max_loop_num loop_count abrs counter =
-  let (newAbrs, appliedRule, newCounter) = applyRules abrs counter
+  let (newAbrs, ar, newCounter) = applyRules abrs counter
+      appliedRule = _trace "applied rule " ar
    in if appliedRule /= NONE && loop_count < max_loop_num
         then _tableauAlgorithmForTest max_loop_num (loop_count + 1) newAbrs newCounter
         else (newAbrs, newCounter, loop_count >= max_loop_num)
