@@ -6,6 +6,7 @@ where
 import ABox
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
+import Numeric (showHex)
 
 stripDoubleNot :: Concept -> Concept
 stripDoubleNot concept =
@@ -52,32 +53,37 @@ data ABoxRecord = ABR
     conceptAssertionList :: [Assertion]
   }
 
+insertRAssertionIntoRelationMap :: Assertion -> HashMap Relation (HashMap Individual (HashSet Individual)) -> HashMap Relation (HashMap Individual (HashSet Individual))
+insertRAssertionIntoRelationMap r_assertion relationMap =
+  case r_assertion of
+    RAssert relation i1 i2 ->
+      case HashMap.lookup relation relationMap of
+        Nothing ->
+          -- relation not found in relation map
+          HashMap.insert relation new_individual_map relationMap
+          where
+            new_individual_set = HashSet.singleton i2
+            new_individual_map = HashMap.singleton i1 new_individual_set
+        Just individual_map ->
+          -- found relation in relation map
+          case HashMap.lookup i1 individual_map of
+            -- i1 not found in individual map
+            Nothing ->
+              HashMap.insert relation new_individual_map relationMap
+              where
+                new_individual_set = HashSet.singleton i2
+                new_individual_map = HashMap.insert i1 new_individual_set individual_map
+            Just individual_set ->
+              -- i1 found in individual map
+              HashMap.insert relation new_individual_map relationMap
+              where
+                new_individual_set = HashSet.insert i2 individual_set
+                new_individual_map = HashMap.insert i1 new_individual_set individual_map
+
 addAssertionToABR :: Assertion -> ABoxRecord -> ABoxRecord
 addAssertionToABR assertion abr =
   case assertion of
-    RAssert relation i1 i2 ->
-      let relationMap = relationMapping abr
-          concept_assertion_list = conceptAssertionList abr
-          newRelationMap = case HashMap.lookup relation relationMap of
-            Nothing ->
-              -- if relation is not in relation map
-              let individualSet = HashSet.singleton i2
-                  individualMap = HashMap.singleton i1 individualSet
-               in HashMap.insert relation individualMap relationMap
-            Just individualMap ->
-              -- if relation in relation map
-              case HashMap.lookup i1 individualMap of
-                Nothing ->
-                  -- if i1 not in individual map
-                  let individualSet = HashSet.singleton i2
-                      newIndividualMap = HashMap.insert i1 individualSet individualMap
-                   in HashMap.insert relation newIndividualMap relationMap
-                Just individualSet ->
-                  -- if i1 in individual map
-                  let newIndividualSet = HashSet.insert i2 individualSet
-                      newIndividualMap = HashMap.insert i1 newIndividualSet individualMap
-                   in HashMap.insert relation newIndividualMap relationMap
-       in ABR newRelationMap concept_assertion_list
+    RAssert _ _ _ -> ABR (insertRAssertionIntoRelationMap assertion (relationMapping abr)) (conceptAssertionList abr)
     CAssert _ _ -> ABR (relationMapping abr) (assertion : conceptAssertionList abr)
 
 constructABRFromABox :: ABox -> ABoxRecord
@@ -186,13 +192,64 @@ applyForallRule abrs =
       let (newAbrs, appliedResults) = unzip (Prelude.map applyForallRuleForOneABox abrs)
        in (newAbrs, or appliedResults)
 
---applyRules :: [ABoxRecord] -> ([ABoxRecord], Bool)
---applyRules abrs =
---  let (abrsAfterAndRule, appliedAndRule) = applyAndRule
---      (abrsAfterOrRule, appliedOrRule) = applyOrRule
---      (abrsAfterForallRule, appliedForallRule) = applyForallRule
---      (abrsAfterExistRule, appliedExistRule) = applyExistRule
---  in ([], False)
+findOneApplicableAssertionForExistRule :: ABoxRecord -> Maybe Assertion
+findOneApplicableAssertionForExistRule abr =
+  let ABR relation_map assertion_list = abr
+   in case assertion_list of
+        [] -> Nothing
+        (a : as) -> case a of
+          (CAssert (Exist relation concept) individual) ->
+            case HashMap.lookup relation relation_map of
+              Nothing ->
+                -- relation not found in relation map
+                Just a
+              Just individual_map ->
+                -- relation found in relation map
+                case HashMap.lookup individual individual_map of
+                  Nothing ->
+                    -- relation(individual, someone) not found in individual map
+                    Just a
+                  Just individual_set ->
+                    -- relation(individual, someone) found in individual map
+                    let assertions = Prelude.map (CAssert concept) (HashSet.toList individual_set)
+                        noC = not (any (`elem` assertion_list) assertions)
+                     in if noC
+                          then Just a
+                          else findOneApplicableAssertionForExistRule (ABR relation_map as)
+          _ -> findOneApplicableAssertionForExistRule (ABR relation_map as)
+
+applyExistRuleForOneABox :: ABoxRecord -> Int -> (ABoxRecord, Bool)
+applyExistRuleForOneABox abr order =
+  let newIndividual = Individual ("#" ++ showHex order "")
+      maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr
+      concept_assertion_list = conceptAssertionList abr
+      relation_map = relationMapping abr
+   in case maybeApplicableAssertion of
+        Nothing -> (abr, False)
+        Just (CAssert (Exist relation concept) individual) ->
+          let r_assertion = RAssert relation individual newIndividual
+              c_assertion = CAssert concept newIndividual
+              new_concept_assertion_list = c_assertion : concept_assertion_list
+              new_relation_map = insertRAssertionIntoRelationMap r_assertion relation_map
+           in (ABR new_relation_map new_concept_assertion_list, True)
+
+applyExistRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
+applyExistRule abrs counter =
+  case abrs of
+    [] -> ([], False, counter)
+    _ ->
+      let abrNum = length abrs
+          seqence = [counter .. counter + abrNum -1]
+          (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs seqence)
+       in (newAbrs, or appliedResults, counter + abrNum)
+
+applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
+applyRules abrs counter =
+  let (abrsAfterAndRule, appliedAndRule) = applyAndRule abrs
+      (abrsAfterOrRule, appliedOrRule) = applyOrRule abrsAfterAndRule
+      (abrsAfterForallRule, appliedForallRule) = applyForallRule abrsAfterOrRule
+      (abrsAfterExistRule, appliedExistRule, afterCounter) = applyExistRule abrsAfterForallRule counter
+   in (abrsAfterExistRule, or [appliedAndRule, appliedExistRule, appliedOrRule, appliedForallRule], afterCounter)
 
 tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
