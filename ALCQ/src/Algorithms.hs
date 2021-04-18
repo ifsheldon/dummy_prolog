@@ -9,6 +9,7 @@ module Algorithms
     tableauAlgorithm,
     _tableauAlgorithmForTest,
     applyRules,
+    checkABoxes,
   )
 where
 

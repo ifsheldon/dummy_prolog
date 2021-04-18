@@ -20,8 +20,10 @@ main =
     let abox = Abox (HashSet.singleton abox_assertion)
     let abr = constructABRFromABox abox
     print abr
-    print "---------------------------------"
     let (finalAbr, _, forcedStop) = _tableauAlgorithmForTest 20 0 [abr] 0
+    let exist_open_abox = checkABoxes finalAbr
+    print "---------------------------------"
     print ("Forced stop = " ++ show forcedStop)
     print finalAbr
+    print ("Exist one open ABox = " ++ show exist_open_abox)
     print "---------------------------------"
