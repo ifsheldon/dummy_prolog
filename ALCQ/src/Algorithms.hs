@@ -193,7 +193,7 @@ applyForallRuleForOneABox abr =
                               let assertions = Prelude.map (CAssert concept) (HashSet.toList individualSet)
                                   applicableAssertions = Prelude.filter (`notElem` concept_assertion_list) assertions
                                   newConceptAssertionList = concept_assertion_list ++ applicableAssertions
-                               in (ABR relationMap newConceptAssertionList, True)
+                               in (ABR relationMap newConceptAssertionList, not (Prelude.null applicableAssertions))
             _ -> (intermediateAbr, applied)
         )
         initialRecord
