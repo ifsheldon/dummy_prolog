@@ -35,14 +35,13 @@ main =
     let b = Primitive "B"
     let c = Primitive "C"
     let forall_r_forall_s_a = Forall r (Forall s a)
-    let exist_r_forall_s_b = Forall r (Forall s b)
+    let exist_r_forall_s_b = Exist r (Forall s b)
     let forall_r_exist_s_c = Forall r (Exist s c)
     let exist_r_exist_s_a_b_c = Exist r (Exist s (a `And` b `And` c))
     let concept_list1 = [forall_r_forall_s_a, exist_r_forall_s_b, forall_r_exist_s_c]
     let subsumed_result1 = querySubsumption concept_list1 exist_r_exist_s_a_b_c
     print subsumed_result1
     -- Task 3 Point 2
-    -- FIXME: see why False, bug here
     let exist_r_forall_s_not_a_or_forall_r_exist_s_b = Exist r (Forall s (Not a)) `Or` Forall r (Exist s b)
     let query2 = Forall r (Exist s (a `And` b)) `Or` Exist r (Forall s (Not b))
     let concept_list2 = [forall_r_forall_s_a, exist_r_forall_s_not_a_or_forall_r_exist_s_b]
