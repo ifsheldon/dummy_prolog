@@ -289,7 +289,7 @@ checkABox c_assertion_set c_assertions =
        in not (HashSet.member negated_assertion c_assertion_set) && checkABox (HashSet.insert a c_assertion_set) as
 
 checkABoxes :: [ABoxRecord] -> Bool
-checkABoxes = any (checkABox HashSet.empty . conceptAssertionList)
+checkABoxes = any (checkABox HashSet.empty . conceptAssertionList) -- if find any open ABox, return True for being consistent
 
 _tableauAlgorithm :: [ABoxRecord] -> Int -> ([ABoxRecord], Int)
 _tableauAlgorithm abrs counter =
@@ -317,4 +317,4 @@ querySubsumption concepts query =
   let with_query_concepts = negateConcept query : concepts
       assertion_set = HashSet.fromList (Prelude.map (\concept -> CAssert concept (Individual "a")) with_query_concepts)
       abox = Abox assertion_set
-   in tableauAlgorithm abox
+   in not (tableauAlgorithm abox) -- if the ABox is inconsistent, return true
