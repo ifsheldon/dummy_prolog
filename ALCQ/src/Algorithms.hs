@@ -68,7 +68,7 @@ data ABoxRecord = ABR
   }
   deriving (Show)
 
-data Rule = EXIST | FORALL | OR | AND | NONE deriving (Eq, Show)
+data Rule = EXIST | FORALL | OR | AND | AT_LEAST | AT_MOST | NONE deriving (Eq, Show)
 
 insertRAssertionIntoRelationMap :: Assertion -> HashMap Relation (HashMap Individual (HashSet Individual)) -> HashMap Relation (HashMap Individual (HashSet Individual))
 insertRAssertionIntoRelationMap r_assertion relationMap =
@@ -260,18 +260,28 @@ applyExistRule abrs counter =
           (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs seqence)
        in (newAbrs, or appliedResults, counter + abrNum)
 
+applyAtLeastRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
+applyAtLeastRule abrs counter = (abrs, False, counter) -- TODO
+
+applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyAtMostRule abrs = (abrs, False) -- TODO
+
 applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Rule, Int)
 applyRules abrs counter
   | andRuleApplicable = (abrsAfterAndRule, AND, counter)
   | forallRuleApplicable = (abrsAfterForallRule, FORALL, counter)
   | orRuleApplicable = (abrsAfterOrRule, OR, counter)
-  | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounter)
+  | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, counter)
+  | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterLeastRule)
+  | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounterAfterExistRule)
   | otherwise = (abrs, NONE, counter)
   where
     (abrsAfterAndRule, andRuleApplicable) = applyAndRule abrs
     (abrsAfterOrRule, orRuleApplicable) = applyOrRule abrs
     (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
-    (abrsAfterExistRule, existRuleApplicable, newCounter) = applyExistRule abrs counter
+    (abrsAfterExistRule, existRuleApplicable, newCounterAfterExistRule) = applyExistRule abrs counter
+    (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
+    (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
 
 checkABox :: HashSet Assertion -> [Assertion] -> Bool
 checkABox c_assertion_set c_assertions =
