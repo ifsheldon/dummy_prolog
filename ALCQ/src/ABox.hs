@@ -5,6 +5,8 @@ module ABox
     Assertion (..),
     ABox (..),
     TBox (..),
+    getTop,
+    getBottom,
   )
 where
 
@@ -35,6 +37,12 @@ data Concept
   | AtLeast Int Relation Concept
   | AtMost Int Relation Concept
   deriving (Show)
+
+_INTERNAL_CONCEPT = Primitive "INTERNAL"
+
+getTop = Or _INTERNAL_CONCEPT (Not _INTERNAL_CONCEPT)
+
+getBottom = And _INTERNAL_CONCEPT (Not _INTERNAL_CONCEPT)
 
 instance Eq Concept where
   c1 == c2 = case (c1, c2) of

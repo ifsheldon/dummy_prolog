@@ -55,6 +55,8 @@ negateConcept concept = stripDoubleNot intermediate
       Forall r c -> Exist r (negateConcept c)
       Exist r c -> Forall r (negateConcept c)
       Primitive _ -> Not concept
+      AtMost n r c -> AtLeast (n + 1) r c
+      AtLeast n r c -> if n == 0 then getBottom else AtMost (n -1) r c
 
 toNNFAssertion :: Assertion -> Assertion
 toNNFAssertion assertion =
@@ -144,9 +146,10 @@ findOrRuleApplicable assertionList runningList = case runningList of
     CAssert (Or c1 c2) individual ->
       let c1Assertion = CAssert c1 individual
           c2Assertion = CAssert c2 individual
+          is_not_top = getTop /= Or c1 c2
           c1InList = c1Assertion `elem` assertionList
           c2InList = c2Assertion `elem` assertionList
-       in if (not c1InList) && (not c2InList)
+       in if is_not_top && (not c1InList) && (not c2InList)
             then Just a
             else findOrRuleApplicable assertionList as
     _ -> findOrRuleApplicable assertionList as
