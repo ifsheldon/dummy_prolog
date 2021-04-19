@@ -32,6 +32,8 @@ data Concept
   | Equiv Concept Concept
   | Forall Relation Concept
   | Exist Relation Concept
+  | AtLeast Int Relation Concept
+  | AtMost Int Relation Concept
   deriving (Show)
 
 instance Eq Concept where
@@ -44,6 +46,8 @@ instance Eq Concept where
     (Primitive name1, Primitive name2) -> name1 == name2
     (Forall r1 sc1, Forall r2 sc2) -> r1 == r2 && sc1 == sc2
     (Exist r1 sc1, Exist r2 sc2) -> r1 == r2 && sc1 == sc2
+    (AtLeast n1 r1 sc1, AtLeast n2 r2 sc2) -> n1 == n2 && r1 == r2 && sc1 == sc2
+    (AtMost n1 r1 sc1, AtMost n2 r2 sc2) -> n1 == n2 && r1 == r2 && sc1 == sc2
     _ -> False
 
 instance Hashable Concept where
@@ -59,6 +63,8 @@ instance Hashable Concept where
           Primitive name -> saltedHashS name
           Exist r c -> hashWithSalt salt r + saltedHashC c + saltedHashS "Exist"
           Forall r c -> hashWithSalt salt r + saltedHashC c + saltedHashS "Forall"
+          AtLeast n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtLeast"
+          AtMost n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtMost"
 
 data Assertion = RAssert Relation Individual Individual | CAssert Concept Individual deriving (Show, Eq)
 
