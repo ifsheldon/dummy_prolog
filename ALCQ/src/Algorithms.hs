@@ -261,23 +261,17 @@ applyExistRule abrs counter =
        in (newAbrs, or appliedResults, counter + abrNum)
 
 applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Rule, Int)
-applyRules abrs counter =
-  let (abrsAfterAndRule, andRuleApplicable) = applyAndRule abrs
-      (abrsAfterOrRule, orRuleApplicable) = applyOrRule abrs
-      (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
-      (abrsAfterExistRule, existRuleApplicable, newCounter) = applyExistRule abrs counter
-   in if andRuleApplicable
-        then (abrsAfterAndRule, AND, counter)
-        else
-          if forallRuleApplicable
-            then (abrsAfterForallRule, FORALL, counter)
-            else
-              if orRuleApplicable
-                then (abrsAfterOrRule, OR, counter)
-                else
-                  if existRuleApplicable
-                    then (abrsAfterExistRule, EXIST, newCounter)
-                    else (abrs, NONE, counter)
+applyRules abrs counter
+  | andRuleApplicable = (abrsAfterAndRule, AND, counter)
+  | forallRuleApplicable = (abrsAfterForallRule, FORALL, counter)
+  | orRuleApplicable = (abrsAfterOrRule, OR, counter)
+  | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounter)
+  | otherwise = (abrs, NONE, counter)
+  where
+    (abrsAfterAndRule, andRuleApplicable) = applyAndRule abrs
+    (abrsAfterOrRule, orRuleApplicable) = applyOrRule abrs
+    (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
+    (abrsAfterExistRule, existRuleApplicable, newCounter) = applyExistRule abrs counter
 
 checkABox :: HashSet Assertion -> [Assertion] -> Bool
 checkABox c_assertion_set c_assertions =
