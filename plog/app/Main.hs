@@ -1,9 +1,10 @@
 module Main where
+
+import Algorithms
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
-import Algorithms
-import SigmaSignature
 import Literals
+import SigmaSignature
 import Theories
 
 main = do
@@ -37,6 +38,10 @@ main = do
   print clausesA
   print clausesB
   print negQueryClauses
+  print "Theory consistency check (if returned `Resolvable Nothing`, the theory is in consistent)"
+  let theory_clauses = concat [clausesA, clausesB]
+  let resolveTheoryResult = resolveClauses theory_clauses
+  print resolveTheoryResult
   print "Resolution Result: ----------------------"
   let clauses = concat [clausesA, clausesB, negQueryClauses]
   let resolveResult = resolveClauses clauses
@@ -61,9 +66,9 @@ main = do
   let child_x_z = AtomicFormula child [vx, vz]
   let descendant_z_y = AtomicFormula descendant [vz, vy]
   let descendant_x_y = AtomicFormula descendant [vx, vy]
-  let descendantDef = forall x (forall y ( (child_x_y `OR` (exist z (child_x_z `AND` descendant_z_y))) `IMPLY` descendant_x_y ))
+  let descendantDef = forall x (forall y ((child_x_y `OR` (exist z (child_x_z `AND` descendant_z_y))) `IMPLY` descendant_x_y))
   let descendantQuery = AtomicFormula descendant [peter, hans]
-  
+
   print "Original Formulas: -----------------------"
   print child_anna_hans
   print child_peter_anna
