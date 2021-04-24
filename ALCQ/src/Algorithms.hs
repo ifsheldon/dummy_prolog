@@ -67,7 +67,8 @@ toNNFAssertion assertion =
 
 data ABoxRecord = ABR
   { relationMapping :: HashMap Relation (HashMap Individual (HashSet Individual)),
-    conceptAssertionList :: [Assertion]
+    conceptAssertionList :: [Assertion],
+    neqSet :: HashSet Assertion
   }
   deriving (Show)
 
@@ -100,17 +101,21 @@ insertRAssertionIntoRelationMap r_assertion relationMap =
                 new_individual_set = HashSet.insert i2 individual_set
                 new_individual_map = HashMap.insert i1 new_individual_set individual_map
 
-addAssertionToABR :: Assertion -> ABoxRecord -> ABoxRecord
+addAssertionToABR :: Assertion -> ABoxRecord -> ABoxRecord -- FIXME
 addAssertionToABR assertion abr =
-  case assertion of
-    RAssert _ _ _ -> ABR (insertRAssertionIntoRelationMap assertion (relationMapping abr)) (conceptAssertionList abr)
-    CAssert _ _ -> ABR (relationMapping abr) (assertion : conceptAssertionList abr)
+  let relation_map = relationMapping abr
+      neq_set = neqSet abr
+      c_assertion_list = conceptAssertionList abr
+   in case assertion of
+        RAssert _ _ _ -> ABR (insertRAssertionIntoRelationMap assertion relation_map) c_assertion_list neq_set
+        CAssert _ _ -> ABR relation_map (assertion : c_assertion_list) neq_set
+        Neq _ _ -> ABR relation_map c_assertion_list (HashSet.insert assertion neq_set)
 
 constructABRFromABox :: ABox -> ABoxRecord
 constructABRFromABox abox =
   let Abox assertionSet = abox
       nnfAssertionSet = HashSet.map toNNFAssertion assertionSet
-      emptyABR = ABR HashMap.empty []
+      emptyABR = ABR HashMap.empty [] HashSet.empty
    in HashSet.foldr addAssertionToABR emptyABR nnfAssertionSet
 
 applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
@@ -126,7 +131,7 @@ applyAndRuleForOneABox abr =
                   listAfterCheckingC1 = if c1InList then concept_assertion_list else c1Assertion : concept_assertion_list
                   c2InList = c2Assertion `elem` listAfterCheckingC1
                   listAfterCheckingC2 = if c2InList then listAfterCheckingC1 else c2Assertion : listAfterCheckingC1
-               in (ABR (relationMapping intermediateAbr) listAfterCheckingC2, not (c1InList && c2InList))
+               in (ABR (relationMapping intermediateAbr) listAfterCheckingC2 (neqSet intermediateAbr), not (c1InList && c2InList))
             _ -> (intermediateAbr, applied)
         )
         runningRecord
@@ -165,8 +170,8 @@ applyOrRuleForOneABox abr =
         Just (CAssert (Or c1 c2) individual) ->
           let c1Assertion = CAssert c1 individual
               c2Assertion = CAssert c2 individual
-              newAbr1 = ABR relationMap (c1Assertion : assertionList)
-              newAbr2 = ABR relationMap (c2Assertion : assertionList)
+              newAbr1 = ABR relationMap (c1Assertion : assertionList) (neqSet abr)
+              newAbr2 = ABR relationMap (c2Assertion : assertionList) (neqSet abr)
            in ([newAbr1, newAbr2], True)
 
 applyOrRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
@@ -199,7 +204,7 @@ applyForallRuleForOneABox abr =
                               let assertions = Prelude.map (CAssert concept) (HashSet.toList individualSet)
                                   applicableAssertions = Prelude.filter (`notElem` concept_assertion_list) assertions
                                   newConceptAssertionList = concept_assertion_list ++ applicableAssertions
-                               in (ABR relationMap newConceptAssertionList, not (Prelude.null applicableAssertions))
+                               in (ABR relationMap newConceptAssertionList (neqSet intermediateAbr), not (Prelude.null applicableAssertions))
             _ -> (intermediateAbr, applied)
         )
         initialRecord
@@ -215,7 +220,7 @@ applyForallRule abrs =
 
 findOneApplicableAssertionForExistRule :: ABoxRecord -> [Assertion] -> Maybe Assertion
 findOneApplicableAssertionForExistRule abr running_assertion_list =
-  let ABR relation_map assertion_list = abr
+  let ABR relation_map assertion_list _ = abr
    in case running_assertion_list of
         [] -> Nothing
         (a : as) -> case a of
@@ -252,7 +257,7 @@ applyExistRuleForOneABox abr order =
               c_assertion = CAssert concept newIndividual
               new_concept_assertion_list = c_assertion : concept_assertion_list
               new_relation_map = insertRAssertionIntoRelationMap r_assertion relation_map
-           in (ABR new_relation_map new_concept_assertion_list, True)
+           in (ABR new_relation_map new_concept_assertion_list (neqSet abr), True)
 
 applyExistRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
 applyExistRule abrs counter =
@@ -307,8 +312,8 @@ applyChooseRuleForOneABox abr =
         Just (concept, individual) ->
           let cb = CAssert concept individual
               ncb = CAssert (negateConcept concept) individual
-              newABR1 = ABR relation_map (cb : cassertions)
-              newABR2 = ABR relation_map (ncb : cassertions)
+              newABR1 = ABR relation_map (cb : cassertions) (neqSet abr)
+              newABR2 = ABR relation_map (ncb : cassertions) (neqSet abr)
            in ([newABR1, newABR2], True)
 
 applyChooseRule :: [ABoxRecord] -> ([ABoxRecord], Bool)

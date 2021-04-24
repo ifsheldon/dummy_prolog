@@ -74,12 +74,13 @@ instance Hashable Concept where
           AtLeast n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtLeast"
           AtMost n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtMost"
 
-data Assertion = RAssert Relation Individual Individual | CAssert Concept Individual deriving (Show, Eq)
+data Assertion = RAssert Relation Individual Individual | CAssert Concept Individual | Neq Individual Individual deriving (Show, Eq)
 
 instance Hashable Assertion where
   hashWithSalt salt assertion = case assertion of
     RAssert r i1 i2 -> hashWithSalt salt r + hashWithSalt salt i1 + hashWithSalt salt i2 * 3
     CAssert c i -> hashWithSalt salt c + hashWithSalt salt i
+    Neq i1 i2 -> hashWithSalt salt i1 + hashWithSalt salt i2
 
 data ABox = Abox (HashSet Assertion)
 
