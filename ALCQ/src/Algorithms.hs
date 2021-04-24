@@ -174,8 +174,8 @@ applyOrRule abrs =
   case abrs of
     [] -> ([], False)
     _ ->
-      let (listOfnewAbrs, appliedResults) = unzip (Prelude.map applyOrRuleForOneABox abrs)
-          newAbrs = concat listOfnewAbrs
+      let (listOfNewAbrs, appliedResults) = unzip (Prelude.map applyOrRuleForOneABox abrs)
+          newAbrs = concat listOfNewAbrs
        in (newAbrs, or appliedResults)
 
 applyForallRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
@@ -260,8 +260,8 @@ applyExistRule abrs counter =
     [] -> ([], False, counter)
     _ ->
       let abrNum = length abrs
-          seqence = [counter .. counter + abrNum -1]
-          (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs seqence)
+          count_num_sequence = [counter .. counter + abrNum -1]
+          (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs count_num_sequence)
        in (newAbrs, or appliedResults, counter + abrNum)
 
 applyAtLeastRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
