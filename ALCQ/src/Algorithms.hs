@@ -15,6 +15,7 @@ module Algorithms
 where
 
 import ABox
+import Data.Foldable (find)
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
 import Debug.Trace (trace)
@@ -269,8 +270,53 @@ applyAtLeastRule abrs counter = (abrs, False, counter) -- TODO
 applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
 applyAtMostRule abrs = (abrs, False) -- TODO
 
+findSuitableIndividualForChooseRule :: ABoxRecord -> [Assertion] -> Maybe (Concept, Individual)
+findSuitableIndividualForChooseRule abr running_list =
+  case running_list of
+    [] -> Nothing
+    (a : as) ->
+      case a of
+        CAssert (AtMost _ r c) individual ->
+          let relation_map = relationMapping abr
+              cassertions = conceptAssertionList abr
+              individual_suitable =
+                ( \b ->
+                    let cb = CAssert c b
+                        ncb = CAssert (negateConcept c) b
+                     in cb `notElem` cassertions && ncb `notElem` cassertions
+                )
+           in case HashMap.lookup r relation_map of
+                Nothing -> findSuitableIndividualForChooseRule abr as -- cannot find r in relation map
+                Just individual_map ->
+                  case HashMap.lookup individual individual_map of
+                    Nothing -> findSuitableIndividualForChooseRule abr as -- found r but r(a, sth) is not found
+                    Just individual_set ->
+                      -- found r and found r(a, sth)
+                      case find individual_suitable individual_set of
+                        Nothing -> findSuitableIndividualForChooseRule abr as -- not found suitable individual
+                        Just b -> Just (c, b) -- found one
+        _ -> findSuitableIndividualForChooseRule abr as
+
+applyChooseRuleForOneABox :: ABoxRecord -> ([ABoxRecord], Bool)
+applyChooseRuleForOneABox abr =
+  let cassertions = conceptAssertionList abr
+      relation_map = relationMapping abr
+      maybeApplicableAssertion = findSuitableIndividualForChooseRule abr cassertions
+   in case maybeApplicableAssertion of
+        Nothing -> ([abr], False)
+        Just (concept, individual) ->
+          let cb = CAssert concept individual
+              ncb = CAssert (negateConcept concept) individual
+              newABR1 = ABR relation_map (cb : cassertions)
+              newABR2 = ABR relation_map (ncb : cassertions)
+           in ([newABR1, newABR2], True)
+
 applyChooseRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
-applyChooseRule abrs = (abrs, False) --TODO
+applyChooseRule abrs = case abrs of
+  [] -> ([], False)
+  _ ->
+    let (listOfNewAbrs, appliedResults) = unzip (Prelude.map applyChooseRuleForOneABox abrs)
+     in (concat listOfNewAbrs, or appliedResults)
 
 applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Rule, Int)
 applyRules abrs counter
