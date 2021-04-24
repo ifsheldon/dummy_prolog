@@ -9,7 +9,7 @@ module Algorithms
     tableauAlgorithm,
     _tableauAlgorithmForTest,
     applyRules,
-    checkABoxes,
+    anyOpenABoxes,
     querySubsumption,
   )
 where
@@ -101,7 +101,7 @@ insertRAssertionIntoRelationMap r_assertion relationMap =
                 new_individual_set = HashSet.insert i2 individual_set
                 new_individual_map = HashMap.insert i1 new_individual_set individual_map
 
-addAssertionToABR :: Assertion -> ABoxRecord -> ABoxRecord -- FIXME
+addAssertionToABR :: Assertion -> ABoxRecord -> ABoxRecord
 addAssertionToABR assertion abr =
   let relation_map = relationMapping abr
       neq_set = neqSet abr
@@ -342,18 +342,24 @@ applyRules abrs counter
     (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
     (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
 
-checkABox :: HashSet Assertion -> [Assertion] -> Bool
-checkABox c_assertion_set c_assertions =
-  -- TODO: add two new contradictions for Q
+noConflictConceptAssertions :: HashSet Assertion -> [Assertion] -> Bool
+noConflictConceptAssertions c_assertion_set c_assertions =
   case c_assertions of
     [] -> True
     (a : as) ->
       let CAssert concept individual = a
           negated_assertion = CAssert (negateConcept concept) individual
-       in not (HashSet.member negated_assertion c_assertion_set) && checkABox (HashSet.insert a c_assertion_set) as
+       in not (HashSet.member negated_assertion c_assertion_set) && noConflictConceptAssertions (HashSet.insert a c_assertion_set) as
 
-checkABoxes :: [ABoxRecord] -> Bool
-checkABoxes = any (checkABox HashSet.empty . conceptAssertionList) -- if find any open ABox, return True for being consistent
+isOpenABox :: ABoxRecord -> Bool
+isOpenABox abr =
+  let no_a_neq_a = not (any (\(Neq i1 i2) -> i1 == i2) (neqSet abr))
+      no_concept_assertion_conflicts = noConflictConceptAssertions HashSet.empty (conceptAssertionList abr)
+      no_number_contradictions = True -- TODO: add one more new contradictions for Q
+   in no_a_neq_a && no_concept_assertion_conflicts && no_number_contradictions
+
+anyOpenABoxes :: [ABoxRecord] -> Bool
+anyOpenABoxes = any isOpenABox -- if find any open ABox, return True for being consistent
 
 _tableauAlgorithm :: [ABoxRecord] -> Int -> ([ABoxRecord], Int)
 _tableauAlgorithm abrs counter =
@@ -374,7 +380,7 @@ tableauAlgorithm :: ABox -> Bool
 tableauAlgorithm abox =
   let aboxRecord = constructABRFromABox abox
       (finalAbrs, _) = _tableauAlgorithm [aboxRecord] 0
-   in checkABoxes finalAbrs
+   in anyOpenABoxes finalAbrs
 
 querySubsumption :: [Concept] -> Concept -> Bool
 querySubsumption concepts query =

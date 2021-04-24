@@ -22,7 +22,7 @@ main =
     let abr = constructABRFromABox abox
     print abr
     let (finalAbr, _, forcedStop) = _tableauAlgorithmForTest 20 0 [abr] 0
-    let exist_open_abox = checkABoxes finalAbr
+    let exist_open_abox = anyOpenABoxes finalAbr
     print "---------------------------------"
     print ("Forced stop = " ++ show forcedStop)
     print finalAbr
