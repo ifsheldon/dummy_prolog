@@ -18,6 +18,7 @@ import ABox
 import Data.Foldable (find)
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
+import Data.List (subsequences)
 import Debug.Trace (trace)
 import Numeric (showHex)
 
@@ -290,6 +291,50 @@ replaceIndividualInABox originalAbr (original, replacement) =
       new_cassertion_list = Prelude.map (\(CAssert c i) -> CAssert c (replace_individual i)) (conceptAssertionList originalAbr)
       new_relation_map = replaceIndividualInRelationMap (relationMapping originalAbr) (original, replacement)
    in ABR new_relation_map new_cassertion_list new_neq_set
+
+findSuitableForAtMostRule :: ABoxRecord -> [Assertion] -> Maybe [Individual]
+findSuitableForAtMostRule abr running_list =
+  case running_list of
+    [] -> Nothing
+    (a : as) -> case a of
+      (CAssert (AtMost n r c) individual) ->
+        let relation_map = relationMapping abr
+            neq_set = neqSet abr
+            cassertions = conceptAssertionList abr
+         in case HashMap.lookup r relation_map of
+              Nothing -> findSuitableForAtMostRule abr as
+              Just individual_map -> case HashMap.lookup individual individual_map of
+                Nothing -> findSuitableForAtMostRule abr as
+                Just individual_set ->
+                  let in_cassertions_individuals = HashSet.filter (\x -> CAssert c x `elem` cassertions) individual_set
+                      qualified_individuals = in_cassertions_individuals --TODO
+                   in if HashSet.size qualified_individuals <= n
+                        then findSuitableForAtMostRule abr as
+                        else Just (HashSet.toList qualified_individuals)
+      _ -> findSuitableForAtMostRule abr as
+
+genIndividualCombinations :: [Individual] -> [(Individual, Individual)]
+genIndividualCombinations individuals =
+  Prelude.map (\x -> (x !! 0, x !! 1)) (Prelude.filter ((2 ==) . length) (subsequences individuals))
+
+applyAtMostRuleForOneABox :: ABoxRecord -> Int -> ([ABoxRecord], Int, Bool)
+applyAtMostRuleForOneABox abr counter =
+  case findSuitableForAtMostRule abr (conceptAssertionList abr) of
+    Nothing -> ([abr], counter, False)
+    Just suitable_individuals ->
+      let combinations = genIndividualCombinations suitable_individuals
+          combination_num = length combinations
+          new_counter = counter + combination_num
+          new_individuals = Prelude.map (\order -> Individual ("#" ++ showHex order "")) [counter .. new_counter -1]
+          replacements = zip combinations new_individuals
+          new_abrs =
+            Prelude.map
+              ( \((i1, i2), replacement) ->
+                  let after_replace_i1 = replaceIndividualInABox abr (i1, replacement)
+                   in replaceIndividualInABox after_replace_i1 (i2, replacement)
+              )
+              replacements
+       in (new_abrs, new_counter, True)
 
 applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
 applyAtMostRule abrs = (abrs, False) -- TODO
