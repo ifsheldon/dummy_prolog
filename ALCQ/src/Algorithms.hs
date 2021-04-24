@@ -336,8 +336,15 @@ applyAtMostRuleForOneABox abr counter =
               replacements
        in (new_abrs, new_counter, True)
 
-applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
-applyAtMostRule abrs = (abrs, False) -- TODO
+applyAtMostRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
+applyAtMostRule abrs counter =
+  Prelude.foldr
+    ( \abr (accumulatingAbrs, anyApplied, running_counter) ->
+        let (newAbrs, newCounter, appliedThisABox) = applyAtMostRuleForOneABox abr running_counter
+         in (accumulatingAbrs ++ newAbrs, anyApplied || appliedThisABox, newCounter)
+    )
+    ([], False, counter)
+    abrs
 
 findSuitableIndividualForChooseRule :: ABoxRecord -> [Assertion] -> Maybe (Concept, Individual)
 findSuitableIndividualForChooseRule abr running_list =
@@ -392,7 +399,7 @@ applyRules abrs counter
   | andRuleApplicable = (abrsAfterAndRule, AND, counter)
   | forallRuleApplicable = (abrsAfterForallRule, FORALL, counter)
   | orRuleApplicable = (abrsAfterOrRule, OR, counter)
-  | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, counter)
+  | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, newCounterAfterAtMostRule)
   | chooseRuleApplicable = (abrsAfterChooseRule, CHOOSE, counter)
   | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterLeastRule)
   | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounterAfterExistRule)
@@ -403,7 +410,7 @@ applyRules abrs counter
     (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
     (abrsAfterChooseRule, chooseRuleApplicable) = applyChooseRule abrs
     (abrsAfterExistRule, existRuleApplicable, newCounterAfterExistRule) = applyExistRule abrs counter
-    (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
+    (abrsAfterAtMostRule, atMostRuleApplicable, newCounterAfterAtMostRule) = applyAtMostRule abrs counter
     (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
 
 noConflictConceptAssertions :: HashSet Assertion -> [Assertion] -> Bool
