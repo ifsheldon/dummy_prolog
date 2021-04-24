@@ -70,7 +70,7 @@ data ABoxRecord = ABR
   }
   deriving (Show)
 
-data Rule = EXIST | FORALL | OR | AND | AT_LEAST | AT_MOST | NONE deriving (Eq, Show)
+data Rule = EXIST | FORALL | OR | AND | AT_LEAST | AT_MOST | CHOOSE | NONE deriving (Eq, Show)
 
 insertRAssertionIntoRelationMap :: Assertion -> HashMap Relation (HashMap Individual (HashSet Individual)) -> HashMap Relation (HashMap Individual (HashSet Individual))
 insertRAssertionIntoRelationMap r_assertion relationMap =
@@ -269,12 +269,16 @@ applyAtLeastRule abrs counter = (abrs, False, counter) -- TODO
 applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
 applyAtMostRule abrs = (abrs, False) -- TODO
 
+applyChooseRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyChooseRule abrs = (abrs, False) --TODO
+
 applyRules :: [ABoxRecord] -> Int -> ([ABoxRecord], Rule, Int)
 applyRules abrs counter
   | andRuleApplicable = (abrsAfterAndRule, AND, counter)
   | forallRuleApplicable = (abrsAfterForallRule, FORALL, counter)
   | orRuleApplicable = (abrsAfterOrRule, OR, counter)
   | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, counter)
+  | chooseRuleApplicable = (abrsAfterChooseRule, CHOOSE, counter)
   | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterLeastRule)
   | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounterAfterExistRule)
   | otherwise = (abrs, NONE, counter)
@@ -282,12 +286,14 @@ applyRules abrs counter
     (abrsAfterAndRule, andRuleApplicable) = applyAndRule abrs
     (abrsAfterOrRule, orRuleApplicable) = applyOrRule abrs
     (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
+    (abrsAfterChooseRule, chooseRuleApplicable) = applyChooseRule abrs
     (abrsAfterExistRule, existRuleApplicable, newCounterAfterExistRule) = applyExistRule abrs counter
     (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
     (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
 
 checkABox :: HashSet Assertion -> [Assertion] -> Bool
 checkABox c_assertion_set c_assertions =
+  -- TODO: add two new contradictions for Q
   case c_assertions of
     [] -> True
     (a : as) ->
