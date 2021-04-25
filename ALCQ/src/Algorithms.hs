@@ -435,12 +435,9 @@ noNumberContradictions abr running_list =
             Just individual_set ->
               let in_cassertions_individuals = HashSet.filter (\b -> (CAssert c b) `elem` (conceptAssertionList abr)) individual_set
                   qualified_individuals = in_cassertions_individuals -- TODO
-               in if HashSet.size individual_set <= n
+               in if HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n
                     then noNumberContradictions abr as
-                    else
-                      if HashSet.size in_cassertions_individuals <= n
-                        then noNumberContradictions abr as
-                        else (HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
+                    else (HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
       _ -> noNumberContradictions abr as
 
 isOpenABox :: ABoxRecord -> Bool
