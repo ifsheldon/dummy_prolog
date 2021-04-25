@@ -292,6 +292,16 @@ replaceIndividualInABox originalAbr (original, replacement) =
       new_relation_map = replaceIndividualInRelationMap (relationMapping originalAbr) (original, replacement)
    in ABR new_relation_map new_cassertion_list new_neq_set
 
+findQualifiedIndividuals :: [Individual] -> Int -> HashSet Assertion -> Maybe [Individual]
+findQualifiedIndividuals individuals num neq_set =
+  let individual_sublists = if length individuals == num then [individuals] else Prelude.filter ((num ==) . length) (subsequences individuals)
+   in find
+        ( \indivs ->
+            let all_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
+             in not (any (`HashSet.member` neq_set) all_neqs)
+        )
+        individual_sublists
+
 findSuitableForAtMostRule :: ABoxRecord -> [Assertion] -> Maybe [Individual]
 findSuitableForAtMostRule abr running_list =
   case running_list of
@@ -307,10 +317,12 @@ findSuitableForAtMostRule abr running_list =
                 Nothing -> findSuitableForAtMostRule abr as
                 Just individual_set ->
                   let in_cassertions_individuals = HashSet.filter (\x -> CAssert c x `elem` cassertions) individual_set
-                      qualified_individuals = in_cassertions_individuals --TODO
-                   in if HashSet.size qualified_individuals <= n
+                      qualified_individuals = findQualifiedIndividuals (HashSet.toList in_cassertions_individuals) (n + 1) neq_set
+                   in if HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n
                         then findSuitableForAtMostRule abr as
-                        else Just (HashSet.toList qualified_individuals)
+                        else case qualified_individuals of
+                          Nothing -> findSuitableForAtMostRule abr as
+                          Just suitable_individuals -> Just suitable_individuals
       _ -> findSuitableForAtMostRule abr as
 
 genIndividualCombinations :: [Individual] -> [(Individual, Individual)]
@@ -434,10 +446,10 @@ noNumberContradictions abr running_list =
             Nothing -> noNumberContradictions abr as
             Just individual_set ->
               let in_cassertions_individuals = HashSet.filter (\b -> (CAssert c b) `elem` (conceptAssertionList abr)) individual_set
-                  qualified_individuals = in_cassertions_individuals -- TODO
-               in if HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n
-                    then noNumberContradictions abr as
-                    else (HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
+                  in_set_neqs = (Prelude.filter (`HashSet.member` neqSet abr) . Prelude.map (uncurry Neq) . genIndividualCombinations . HashSet.toList) in_cassertions_individuals
+                  (individual_list1, individual_list2) = (unzip . Prelude.map (\(Neq i1 i2) -> (i1, i2))) in_set_neqs
+                  qualified_individuals = HashSet.fromList (individual_list1 ++ individual_list2)
+               in (HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n || HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
       _ -> noNumberContradictions abr as
 
 isOpenABox :: ABoxRecord -> Bool
