@@ -19,6 +19,7 @@ import Data.Foldable (find)
 import Data.HashMap.Strict as HashMap
 import Data.HashSet as HashSet
 import Data.List (subsequences)
+import Data.Maybe (isNothing)
 import Debug.Trace (trace)
 import Numeric (showHex)
 
@@ -270,8 +271,61 @@ applyExistRule abrs counter =
           (newAbrs, appliedResults) = unzip (zipWith applyExistRuleForOneABox abrs count_num_sequence)
        in (newAbrs, or appliedResults, counter + abrNum)
 
+findQualifiedIndividualsForAtLeastRule :: [Individual] -> Int -> HashSet Assertion -> Maybe [Individual]
+findQualifiedIndividualsForAtLeastRule individuals num neq_set =
+  let individual_sublists = if length individuals == num then [individuals] else Prelude.filter ((num ==) . length) (subsequences individuals)
+   in find
+        ( \indivs ->
+            let all_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
+             in all (`HashSet.member` neq_set) all_neqs
+        )
+        individual_sublists
+
+applyAtLeastRuleForOneABox :: ABoxRecord -> Int -> (ABoxRecord, Bool, Int)
+applyAtLeastRuleForOneABox abr counter =
+  let neq_set = neqSet abr
+      relation_map = relationMapping abr
+      cassertions = conceptAssertionList abr
+      maybeSuitableAtLeastAssertion =
+        find
+          ( \assertion ->
+              case assertion of
+                CAssert (AtLeast n r c) a ->
+                  case HashMap.lookup r relation_map of
+                    Nothing -> True
+                    Just individual_map ->
+                      case HashMap.lookup a individual_map of
+                        Nothing -> True
+                        Just individual_set ->
+                          HashSet.size individual_set < n || (HashSet.size in_casserions_individuals < n) || isNothing maybeQualifiedIndividuals
+                          where
+                            in_casserions_individuals = HashSet.filter ((`elem` cassertions) . (CAssert c)) individual_set
+                            maybeQualifiedIndividuals = findQualifiedIndividualsForAtLeastRule (HashSet.toList in_casserions_individuals) n neq_set
+                _ -> False
+          )
+          cassertions
+   in case maybeSuitableAtLeastAssertion of
+        Nothing -> (abr, False, counter)
+        Just (CAssert (AtLeast n r c) a) ->
+          let new_counter = counter + n
+              new_individuals = Prelude.map (\order -> Individual ("#AL" ++ showHex order "")) [counter .. new_counter -1]
+              new_relation_assertions = Prelude.map (RAssert r a) new_individuals
+              new_concept_assertions = Prelude.map (CAssert c) new_individuals
+              new_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) new_individuals
+              new_cassertions = cassertions ++ new_concept_assertions
+              new_neq_set = HashSet.union neq_set (HashSet.fromList new_neqs)
+              new_relation_map = Prelude.foldr insertRAssertionIntoRelationMap relation_map new_relation_assertions
+           in (ABR new_relation_map new_cassertions new_neq_set, True, new_counter)
+
 applyAtLeastRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
-applyAtLeastRule abrs counter = (abrs, False, counter) -- TODO
+applyAtLeastRule abrs counter =
+  Prelude.foldr
+    ( \abr (intermediate_abrs, ever_applied, running_counter) ->
+        let (new_abr, applied, new_counter) = applyAtLeastRuleForOneABox abr running_counter
+         in (new_abr : intermediate_abrs, applied || ever_applied, new_counter)
+    )
+    ([], False, counter)
+    abrs
 
 replaceIndividual :: (Individual, Individual) -> Individual -> Individual
 replaceIndividual (original, replacement) x = if x == original then replacement else x
@@ -292,8 +346,8 @@ replaceIndividualInABox originalAbr (original, replacement) =
       new_relation_map = replaceIndividualInRelationMap (relationMapping originalAbr) (original, replacement)
    in ABR new_relation_map new_cassertion_list new_neq_set
 
-findQualifiedIndividuals :: [Individual] -> Int -> HashSet Assertion -> Maybe [Individual]
-findQualifiedIndividuals individuals num neq_set =
+findQualifiedIndividualsForAtMostRule :: [Individual] -> Int -> HashSet Assertion -> Maybe [Individual]
+findQualifiedIndividualsForAtMostRule individuals num neq_set =
   let individual_sublists = if length individuals == num then [individuals] else Prelude.filter ((num ==) . length) (subsequences individuals)
    in find
         ( \indivs ->
@@ -317,7 +371,7 @@ findSuitableForAtMostRule abr running_list =
                 Nothing -> findSuitableForAtMostRule abr as
                 Just individual_set ->
                   let in_cassertions_individuals = HashSet.filter (\x -> CAssert c x `elem` cassertions) individual_set
-                      qualified_individuals = findQualifiedIndividuals (HashSet.toList in_cassertions_individuals) (n + 1) neq_set
+                      qualified_individuals = findQualifiedIndividualsForAtMostRule (HashSet.toList in_cassertions_individuals) (n + 1) neq_set
                    in if HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n
                         then findSuitableForAtMostRule abr as
                         else case qualified_individuals of
