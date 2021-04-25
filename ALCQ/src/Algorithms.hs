@@ -383,34 +383,28 @@ genIndividualCombinations :: [Individual] -> [(Individual, Individual)]
 genIndividualCombinations individuals =
   Prelude.map (\x -> (x !! 0, x !! 1)) (Prelude.filter ((2 ==) . length) (subsequences individuals))
 
-applyAtMostRuleForOneABox :: ABoxRecord -> Int -> ([ABoxRecord], Int, Bool)
-applyAtMostRuleForOneABox abr counter =
+applyAtMostRuleForOneABox :: ABoxRecord -> ([ABoxRecord], Bool)
+applyAtMostRuleForOneABox abr =
   case findSuitableForAtMostRule abr (conceptAssertionList abr) of
-    Nothing -> ([abr], counter, False)
+    Nothing -> ([abr], False)
     Just suitable_individuals ->
       let combinations = genIndividualCombinations suitable_individuals
-          combination_num = length combinations
-          new_counter = counter + combination_num
-          new_individuals = Prelude.map (\order -> Individual ("#" ++ showHex order "")) [counter .. new_counter -1]
-          replacements = zip combinations new_individuals
           new_abrs =
             Prelude.map
-              ( \((i1, i2), replacement) ->
-                  let after_replace_i1 = replaceIndividualInABox abr (i1, replacement)
+              ( \(i1, i2) ->
+                  let Individual i1_name = i1
+                      Individual i2_name = i2
+                      replacement = Individual (i1_name ++ "+" ++ i2_name)
+                      after_replace_i1 = replaceIndividualInABox abr (i1, replacement)
                    in replaceIndividualInABox after_replace_i1 (i2, replacement)
               )
-              replacements
-       in (new_abrs, new_counter, True)
+              combinations
+       in (new_abrs, True)
 
-applyAtMostRule :: [ABoxRecord] -> Int -> ([ABoxRecord], Bool, Int)
-applyAtMostRule abrs counter =
-  Prelude.foldr
-    ( \abr (accumulatingAbrs, anyApplied, running_counter) ->
-        let (newAbrs, newCounter, appliedThisABox) = applyAtMostRuleForOneABox abr running_counter
-         in (accumulatingAbrs ++ newAbrs, anyApplied || appliedThisABox, newCounter)
-    )
-    ([], False, counter)
-    abrs
+applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
+applyAtMostRule abrs =
+  let (new_abrs_list, applied_results) = unzip (Prelude.map applyAtMostRuleForOneABox abrs)
+   in (concat new_abrs_list, or applied_results)
 
 findSuitableIndividualForChooseRule :: ABoxRecord -> [Assertion] -> Maybe (Concept, Individual)
 findSuitableIndividualForChooseRule abr running_list =
@@ -465,7 +459,7 @@ applyRules abrs counter
   | andRuleApplicable = (abrsAfterAndRule, AND, counter)
   | forallRuleApplicable = (abrsAfterForallRule, FORALL, counter)
   | orRuleApplicable = (abrsAfterOrRule, OR, counter)
-  | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, newCounterAfterAtMostRule)
+  | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, counter)
   | chooseRuleApplicable = (abrsAfterChooseRule, CHOOSE, counter)
   | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterLeastRule)
   | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounterAfterExistRule)
@@ -476,7 +470,7 @@ applyRules abrs counter
     (abrsAfterForallRule, forallRuleApplicable) = applyForallRule abrs
     (abrsAfterChooseRule, chooseRuleApplicable) = applyChooseRule abrs
     (abrsAfterExistRule, existRuleApplicable, newCounterAfterExistRule) = applyExistRule abrs counter
-    (abrsAfterAtMostRule, atMostRuleApplicable, newCounterAfterAtMostRule) = applyAtMostRule abrs counter
+    (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
     (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
 
 noConflictConceptAssertions :: HashSet Assertion -> [Assertion] -> Bool
