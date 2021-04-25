@@ -422,11 +422,32 @@ noConflictConceptAssertions c_assertion_set c_assertions =
           negated_assertion = CAssert (negateConcept concept) individual
        in not (HashSet.member negated_assertion c_assertion_set) && noConflictConceptAssertions (HashSet.insert a c_assertion_set) as
 
+noNumberContradictions :: ABoxRecord -> [Assertion] -> Bool
+noNumberContradictions abr running_list =
+  case running_list of
+    [] -> True
+    (a : as) -> case a of
+      (CAssert (AtMost n r c) individual) ->
+        case HashMap.lookup r (relationMapping abr) of
+          Nothing -> noNumberContradictions abr as
+          Just individual_map -> case HashMap.lookup individual individual_map of
+            Nothing -> noNumberContradictions abr as
+            Just individual_set ->
+              let in_cassertions_individuals = HashSet.filter (\b -> (CAssert c b) `elem` (conceptAssertionList abr)) individual_set
+                  qualified_individuals = in_cassertions_individuals -- TODO
+               in if HashSet.size individual_set <= n
+                    then noNumberContradictions abr as
+                    else
+                      if HashSet.size in_cassertions_individuals <= n
+                        then noNumberContradictions abr as
+                        else (HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
+      _ -> noNumberContradictions abr as
+
 isOpenABox :: ABoxRecord -> Bool
 isOpenABox abr =
   let no_a_neq_a = not (any (\(Neq i1 i2) -> i1 == i2) (neqSet abr))
       no_concept_assertion_conflicts = noConflictConceptAssertions HashSet.empty (conceptAssertionList abr)
-      no_number_contradictions = True -- TODO: add one more new contradictions for Q
+      no_number_contradictions = noNumberContradictions abr (conceptAssertionList abr)
    in no_a_neq_a && no_concept_assertion_conflicts && no_number_contradictions
 
 anyOpenABoxes :: [ABoxRecord] -> Bool
