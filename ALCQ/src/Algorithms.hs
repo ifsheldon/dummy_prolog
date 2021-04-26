@@ -233,37 +233,30 @@ applyForallRule abrs =
       let (newAbrs, appliedResults) = unzip (Prelude.map applyForallRuleForOneABox abrs)
        in (newAbrs, or appliedResults)
 
-findOneApplicableAssertionForExistRule :: ABoxRecord -> [Assertion] -> Maybe Assertion
-findOneApplicableAssertionForExistRule abr running_assertion_list =
-  let ABR relation_map assertion_list _ = abr
-   in case running_assertion_list of
-        [] -> Nothing
-        (a : as) -> case a of
-          (CAssert (Exist relation concept) individual) ->
-            case HashMap.lookup relation relation_map of
-              Nothing ->
-                -- relation not found in relation map
-                Just a
-              Just individual_map ->
-                -- relation found in relation map
-                case HashMap.lookup individual individual_map of
-                  Nothing ->
-                    -- relation(individual, someone) not found in individual map
-                    Just a
-                  Just individual_set ->
-                    -- relation(individual, someone) found in individual map
-                    let assertions = Prelude.map (CAssert concept) (HashSet.toList individual_set)
-                        noC = not (any (`elem` assertion_list) assertions)
-                     in if noC
-                          then Just a
-                          else findOneApplicableAssertionForExistRule abr as
-          _ -> findOneApplicableAssertionForExistRule abr as
+findOneApplicableAssertionForExistRule :: ABoxRecord -> Maybe Assertion
+findOneApplicableAssertionForExistRule (ABR relation_map assertion_list _) =
+  find
+    ( \case
+        (CAssert (Exist relation concept) individual) ->
+          case HashMap.lookup relation relation_map of
+            Nothing -> True -- relation not found in relation map
+            Just individual_map ->
+              -- relation found in relation map
+              case HashMap.lookup individual individual_map of
+                Nothing -> True -- relation(individual, someone) not found in individual map
+                Just individual_set ->
+                  -- relation(individual, someone) found in individual map
+                  let assertions = Prelude.map (CAssert concept) (HashSet.toList individual_set)
+                   in not (any (`elem` assertion_list) assertions)
+        _ -> False
+    )
+    assertion_list
 
 applyExistRuleForOneABox :: ABoxRecord -> Int -> (ABoxRecord, Bool)
 applyExistRuleForOneABox abr order =
   let newIndividual = Individual ("#E-" ++ showHex order "")
       concept_assertion_list = conceptAssertionList abr
-      maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr concept_assertion_list
+      maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr
       relation_map = relationMapping abr
    in case maybeApplicableAssertion of
         Nothing -> (abr, False)
