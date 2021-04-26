@@ -120,7 +120,19 @@ constructABRFromABox abox =
   let Abox assertionSet = abox
       nnfAssertionSet = HashSet.map toNNFAssertion assertionSet
       emptyABR = ABR HashMap.empty [] HashSet.empty
-   in HashSet.foldr addAssertionToABR emptyABR nnfAssertionSet
+      all_individual_top_assertions =
+        ( Prelude.map (CAssert getTop) . HashSet.toList . HashSet.fromList
+            . concatMap
+              ( \case
+                  RAssert _ i1 i2 -> [i1, i2]
+                  CAssert _ i -> [i]
+                  Neq i1 i2 -> [i1, i2]
+              )
+            . HashSet.toList
+        )
+          assertionSet
+      new_abr = HashSet.foldr addAssertionToABR emptyABR nnfAssertionSet
+   in ABR (relationMapping new_abr) (conceptAssertionList new_abr ++ all_individual_top_assertions) (neqSet new_abr)
 
 applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
 applyAndRuleForOneABox abr =
@@ -259,7 +271,8 @@ applyExistRuleForOneABox abr order =
         Just (CAssert (Exist relation concept) individual) ->
           let r_assertion = RAssert relation individual newIndividual
               c_assertion = CAssert concept newIndividual
-              new_concept_assertion_list = c_assertion : concept_assertion_list
+              top_assertion = CAssert getTop newIndividual
+              new_concept_assertion_list = top_assertion : c_assertion : concept_assertion_list
               new_relation_map = insertRAssertionIntoRelationMap r_assertion relation_map
            in (ABR new_relation_map new_concept_assertion_list (neqSet abr), True)
 
@@ -310,10 +323,11 @@ applyAtLeastRuleForOneABox abr counter =
         Just (CAssert (AtLeast n r c) a) ->
           let new_counter = counter + n
               new_individuals = Prelude.map (\order -> Individual ("#AL" ++ showHex order "")) [counter .. new_counter -1]
+              new_top_assertions = Prelude.map (CAssert getTop) new_individuals
               new_relation_assertions = Prelude.map (RAssert r a) new_individuals
               new_concept_assertions = Prelude.map (CAssert c) new_individuals
               new_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) new_individuals
-              new_cassertions = cassertions ++ new_concept_assertions
+              new_cassertions = cassertions ++ new_concept_assertions ++ new_top_assertions
               new_neq_set = HashSet.union neq_set (HashSet.fromList new_neqs)
               new_relation_map = Prelude.foldr insertRAssertionIntoRelationMap relation_map new_relation_assertions
            in (ABR new_relation_map new_cassertions new_neq_set, True, new_counter)
@@ -473,7 +487,7 @@ applyRules abrs counter
   | orRuleApplicable = (abrsAfterOrRule, OR, counter)
   | atMostRuleApplicable = (abrsAfterAtMostRule, AT_MOST, counter)
   | chooseRuleApplicable = (abrsAfterChooseRule, CHOOSE, counter)
-  | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterLeastRule)
+  | atLeastRuleApplicable = (abrsAfterAtLeastRule, AT_LEAST, newCounterAfterAtLeastRule)
   | existRuleApplicable = (abrsAfterExistRule, EXIST, newCounterAfterExistRule)
   | otherwise = (abrs, NONE, counter)
   where
@@ -483,7 +497,7 @@ applyRules abrs counter
     (abrsAfterChooseRule, chooseRuleApplicable) = applyChooseRule abrs
     (abrsAfterExistRule, existRuleApplicable, newCounterAfterExistRule) = applyExistRule abrs counter
     (abrsAfterAtMostRule, atMostRuleApplicable) = applyAtMostRule abrs
-    (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterLeastRule) = applyAtLeastRule abrs counter
+    (abrsAfterAtLeastRule, atLeastRuleApplicable, newCounterAfterAtLeastRule) = applyAtLeastRule abrs counter
 
 noConflictConceptAssertions :: HashSet Assertion -> [Assertion] -> Bool
 noConflictConceptAssertions c_assertion_set c_assertions =
