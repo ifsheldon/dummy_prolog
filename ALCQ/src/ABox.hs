@@ -74,7 +74,14 @@ instance Hashable Concept where
           AtLeast n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtLeast"
           AtMost n r c -> hashWithSalt salt n + hashWithSalt salt r + saltedHashC c + saltedHashS "AtMost"
 
-data Assertion = RAssert Relation Individual Individual | CAssert Concept Individual | Neq Individual Individual deriving (Show, Eq)
+data Assertion = RAssert Relation Individual Individual | CAssert Concept Individual | Neq Individual Individual deriving (Show)
+
+instance Eq Assertion where
+  a1 == a2 = case (a1, a2) of
+    (RAssert r1 i11 i12, RAssert r2 i21 i22) -> r1 == r2 && i11 == i21 && i12 == i22
+    (CAssert c1 i1, CAssert c2 i2) -> c1 == c2 && i1 == i2
+    (Neq i11 i12, Neq i21 i22) -> (i11 == i21 && i12 == i22) || (i12 == i21 && i11 == i22)
+    _ -> False
 
 instance Hashable Assertion where
   hashWithSalt salt assertion = case assertion of
