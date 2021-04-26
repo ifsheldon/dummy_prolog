@@ -100,3 +100,20 @@ main =
     print finalAbr2
     print ("Exist one open ABox = " ++ show exist_open_abox2)
     print "\n---------------------------------"
+    -- Example: abox = { P(a), AtMost(1,r,P)(a), Exists(r,P)(a), ForAll(r, Exists(r, P))(a), r(a,a) }
+    let p = Primitive "P"
+    let p_a = CAssert p individual_a
+    let at_most_1_r_p_a = CAssert (AtMost 1 r p) individual_a
+    let exist_r_p_a = CAssert (Exist r p) individual_a
+    let r_a_a = RAssert r individual_a individual_a
+    let forall_r_exist_r_p_a = CAssert (Forall r (Exist r p)) individual_a
+    let abr3 = constructABRFromABox (Abox (HashSet.fromList [p_a, at_most_1_r_p_a, exist_r_p_a, r_a_a, forall_r_exist_r_p_a]))
+    print abr2
+    let (finalAbr3, _, forcedStop3) = _tableauAlgorithmForTest 20 0 [abr3] 0
+    let exist_open_abox3 = anyOpenABoxes finalAbr3
+    print "\n---------------------------------"
+    print "Example: abox = { P(a), AtMost(1,r,P)(a), Exists(r,P)(a), ForAll(r, Exists(r, P))(a), r(a,a) }"
+    print ("Forced stop = " ++ show forcedStop3)
+    print finalAbr3
+    print ("Exist one open ABox = " ++ show exist_open_abox3)
+    print "\n---------------------------------"
