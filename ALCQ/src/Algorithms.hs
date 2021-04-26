@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Algorithms
   ( toNNF,
     constructABRFromABox,
@@ -288,20 +290,19 @@ applyAtLeastRuleForOneABox abr counter =
       cassertions = conceptAssertionList abr
       maybeSuitableAtLeastAssertion =
         find
-          ( \assertion ->
-              case assertion of
-                CAssert (AtLeast n r c) a ->
-                  case HashMap.lookup r relation_map of
-                    Nothing -> True
-                    Just individual_map ->
-                      case HashMap.lookup a individual_map of
-                        Nothing -> True
-                        Just individual_set ->
-                          HashSet.size individual_set < n || (HashSet.size in_casserions_individuals < n) || isNothing maybeQualifiedIndividuals
-                          where
-                            in_casserions_individuals = HashSet.filter ((`elem` cassertions) . (CAssert c)) individual_set
-                            maybeQualifiedIndividuals = findQualifiedIndividualsForAtLeastRule (HashSet.toList in_casserions_individuals) n neq_set
-                _ -> False
+          ( \case
+              CAssert (AtLeast n r c) a ->
+                case HashMap.lookup r relation_map of
+                  Nothing -> True
+                  Just individual_map ->
+                    case HashMap.lookup a individual_map of
+                      Nothing -> True
+                      Just individual_set ->
+                        HashSet.size individual_set < n || (HashSet.size in_casserions_individuals < n) || isNothing maybeQualifiedIndividuals
+                        where
+                          in_casserions_individuals = HashSet.filter ((`elem` cassertions) . (CAssert c)) individual_set
+                          maybeQualifiedIndividuals = findQualifiedIndividualsForAtLeastRule (HashSet.toList in_casserions_individuals) n neq_set
+              _ -> False
           )
           cassertions
    in case maybeSuitableAtLeastAssertion of
