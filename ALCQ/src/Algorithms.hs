@@ -262,7 +262,7 @@ findOneApplicableAssertionForExistRule abr running_assertion_list =
 
 applyExistRuleForOneABox :: ABoxRecord -> Int -> (ABoxRecord, Bool)
 applyExistRuleForOneABox abr order =
-  let newIndividual = Individual ("#" ++ showHex order "")
+  let newIndividual = Individual ("#E-" ++ showHex order "")
       concept_assertion_list = conceptAssertionList abr
       maybeApplicableAssertion = findOneApplicableAssertionForExistRule abr concept_assertion_list
       relation_map = relationMapping abr
