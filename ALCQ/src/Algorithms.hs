@@ -330,19 +330,30 @@ applyAtLeastRule abrs counter =
 replaceIndividual :: (Individual, Individual) -> Individual -> Individual
 replaceIndividual (original, replacement) x = if x == original then replacement else x
 
+relationMapToRAssertions :: HashMap Relation (HashMap Individual (HashSet Individual)) -> [Assertion]
+relationMapToRAssertions relation_map =
+  let relation_list = HashMap.toList relation_map
+   in concatMap
+        ( \(relation, individual_map) ->
+            concatMap
+              (\(individual, individual_set) -> Prelude.map (RAssert relation individual) (HashSet.toList individual_set))
+              (HashMap.toList individual_map)
+        )
+        relation_list
+
 replaceIndividualInRelationMap :: HashMap Relation (HashMap Individual (HashSet Individual)) -> (Individual, Individual) -> HashMap Relation (HashMap Individual (HashSet Individual))
 replaceIndividualInRelationMap relation_map (original, replacement) =
   let replace_individual = replaceIndividual (original, replacement)
-      replace_individual_of_set = HashSet.map replace_individual
-      -- NOTICE: Do not consider key conflicts when doing replacement! Must assure no duplicate keys after replacement
-      replace_k_v = (\(k, v) -> (replace_individual k, replace_individual_of_set v))
-   in HashMap.map (HashMap.fromList . Prelude.map replace_k_v . HashMap.toList) relation_map
+      replace_individuals_in_r_assertion = (\(RAssert r i1 i2) -> RAssert r (replace_individual i1) (replace_individual i2))
+      original_r_assertions = relationMapToRAssertions relation_map -- reconstruct RAssertions
+      new_r_assertions = Prelude.map replace_individuals_in_r_assertion original_r_assertions
+   in Prelude.foldr insertRAssertionIntoRelationMap HashMap.empty new_r_assertions -- construct new relation map
 
 replaceIndividualInABox :: ABoxRecord -> (Individual, Individual) -> ABoxRecord
 replaceIndividualInABox originalAbr (original, replacement) =
   let replace_individual = replaceIndividual (original, replacement)
       new_neq_set = HashSet.map (\(Neq i1 i2) -> Neq (replace_individual i1) (replace_individual i2)) (neqSet originalAbr)
-      new_cassertion_list = Prelude.map (\(CAssert c i) -> CAssert c (replace_individual i)) (conceptAssertionList originalAbr)
+      new_cassertion_list = (HashSet.toList . HashSet.fromList . Prelude.map (\(CAssert c i) -> CAssert c (replace_individual i))) (conceptAssertionList originalAbr)
       new_relation_map = replaceIndividualInRelationMap (relationMapping originalAbr) (original, replacement)
    in ABR new_relation_map new_cassertion_list new_neq_set
 
