@@ -398,7 +398,7 @@ findSuitableForAtMostRule abr running_list =
                 Just individual_set ->
                   let in_cassertions_individuals = HashSet.filter (\x -> CAssert c x `elem` cassertions) individual_set
                       qualified_individuals = findQualifiedIndividualsForAtMostRule (HashSet.toList in_cassertions_individuals) (n + 1) neq_set
-                   in if HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n
+                   in if HashSet.size individual_set <= n + 1 || HashSet.size in_cassertions_individuals <= n + 1
                         then findSuitableForAtMostRule abr as
                         else case qualified_individuals of
                           Nothing -> findSuitableForAtMostRule abr as
