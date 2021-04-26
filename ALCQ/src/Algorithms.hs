@@ -291,8 +291,8 @@ findQualifiedIndividualsForAtLeastRule individuals num neq_set =
   let individual_sublists = if length individuals == num then [individuals] else Prelude.filter ((num ==) . length) (subsequences individuals)
    in find
         ( \indivs ->
-            let all_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
-             in all (`HashSet.member` neq_set) all_neqs
+            let all_neqs = (HashSet.fromList . Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
+             in all_neqs `isSubsetOf` neq_set
         )
         individual_sublists
 
@@ -377,8 +377,8 @@ findQualifiedIndividualsForAtMostRule individuals num neq_set =
   let individual_sublists = if length individuals == num then [individuals] else Prelude.filter ((num ==) . length) (subsequences individuals)
    in find
         ( \indivs ->
-            let all_neqs = (Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
-             in not (any (`HashSet.member` neq_set) all_neqs)
+            let all_neqs = (HashSet.fromList . Prelude.map (uncurry Neq) . genIndividualCombinations) indivs
+             in not (all_neqs `isSubsetOf` neq_set)
         )
         individual_sublists
 
