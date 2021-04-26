@@ -160,26 +160,26 @@ applyAndRule abrs =
       let (newAbrs, appliedResults) = unzip (Prelude.map applyAndRuleForOneABox abrs)
        in (newAbrs, or appliedResults)
 
-findOrRuleApplicable :: [Assertion] -> [Assertion] -> Maybe Assertion
-findOrRuleApplicable assertionList runningList = case runningList of
-  [] -> Nothing
-  (a : as) -> case a of
-    CAssert (Or c1 c2) individual ->
-      let c1Assertion = CAssert c1 individual
-          c2Assertion = CAssert c2 individual
-          is_not_top = getTop /= Or c1 c2
-          c1InList = c1Assertion `elem` assertionList
-          c2InList = c2Assertion `elem` assertionList
-       in if is_not_top && (not c1InList) && (not c2InList)
-            then Just a
-            else findOrRuleApplicable assertionList as
-    _ -> findOrRuleApplicable assertionList as
+findOrRuleApplicable :: [Assertion] -> Maybe Assertion
+findOrRuleApplicable assertion_list =
+  find
+    ( \case
+        CAssert (Or c1 c2) individual ->
+          let c1Assertion = CAssert c1 individual
+              c2Assertion = CAssert c2 individual
+              is_not_top = getTop /= Or c1 c2
+              c1InList = c1Assertion `elem` assertion_list
+              c2InList = c2Assertion `elem` assertion_list
+           in is_not_top && not c1InList && not c2InList
+        _ -> False
+    )
+    assertion_list
 
 applyOrRuleForOneABox :: ABoxRecord -> ([ABoxRecord], Bool)
 applyOrRuleForOneABox abr =
   let assertionList = conceptAssertionList abr
       relationMap = relationMapping abr
-      applicableAssertion = findOrRuleApplicable assertionList assertionList
+      applicableAssertion = findOrRuleApplicable assertionList
    in case applicableAssertion of
         Nothing -> ([abr], False)
         Just (CAssert (Or c1 c2) individual) ->
