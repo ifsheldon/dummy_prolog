@@ -3,6 +3,7 @@ module Main where
 import ABox
 import Algorithms
 import Data.HashSet as HashSet
+import Data.List (subsequences)
 
 main :: IO ()
 main =
@@ -79,4 +80,23 @@ main =
     print finalAbr1
     print ("Exist one open ABox = " ++ show exist_open_abox1)
     print ("a is an instance of the concept w.r.t A: " ++ show (not exist_open_abox1))
+    print "\n---------------------------------"
+    -- Example: at least 3 child, at most 1 female, at most 1 not female
+    let hasChild = Relation "hasChild"
+    let female = Primitive "Female"
+    let not_female = Not female
+    let at_least_3_child = AtLeast 3 hasChild getTop
+    let at_most_1_female = AtMost 1 hasChild female
+    let at_most_1_not_female = AtMost 1 hasChild not_female
+    let someone = Individual "someone"
+    let query_assertion2 = CAssert (at_least_3_child `And` at_most_1_female `And` at_most_1_not_female) someone
+    let abr2 = constructABRFromABox (Abox (HashSet.singleton query_assertion2))
+    print abr2
+    let (finalAbr2, _, forcedStop2) = _tableauAlgorithmForTest 20 0 [abr2] 0
+    let exist_open_abox2 = anyOpenABoxes finalAbr2
+    print "\n---------------------------------"
+    print "Example: at least 3 child, at most 1 female, at most 1 not female"
+    print ("Forced stop = " ++ show forcedStop2)
+    print finalAbr2
+    print ("Exist one open ABox = " ++ show exist_open_abox2)
     print "\n---------------------------------"
