@@ -136,22 +136,21 @@ constructABRFromABox abox =
 
 applyAndRuleForOneABox :: ABoxRecord -> (ABoxRecord, Bool)
 applyAndRuleForOneABox abr =
-  let runningRecord = (abr, False)
-   in Prelude.foldr
-        ( \concept_assert (intermediateAbr, applied) -> case concept_assert of
-            CAssert (And c1 c2) individual ->
-              let concept_assertion_list = conceptAssertionList intermediateAbr
-                  c1Assertion = CAssert c1 individual
-                  c2Assertion = CAssert c2 individual
-                  c1InList = c1Assertion `elem` concept_assertion_list
-                  listAfterCheckingC1 = if c1InList then concept_assertion_list else c1Assertion : concept_assertion_list
-                  c2InList = c2Assertion `elem` listAfterCheckingC1
-                  listAfterCheckingC2 = if c2InList then listAfterCheckingC1 else c2Assertion : listAfterCheckingC1
-               in (ABR (relationMapping intermediateAbr) listAfterCheckingC2 (neqSet intermediateAbr), not (c1InList && c2InList))
-            _ -> (intermediateAbr, applied)
-        )
-        runningRecord
-        (conceptAssertionList abr)
+  Prelude.foldr
+    ( \concept_assert (intermediateAbr, ever_applied) -> case concept_assert of
+        CAssert (And c1 c2) individual ->
+          let concept_assertion_list = conceptAssertionList intermediateAbr
+              c1Assertion = CAssert c1 individual
+              c2Assertion = CAssert c2 individual
+              c1InList = c1Assertion `elem` concept_assertion_list
+              listAfterCheckingC1 = if c1InList then concept_assertion_list else c1Assertion : concept_assertion_list
+              c2InList = c2Assertion `elem` listAfterCheckingC1
+              listAfterCheckingC2 = if c2InList then listAfterCheckingC1 else c2Assertion : listAfterCheckingC1
+           in (ABR (relationMapping intermediateAbr) listAfterCheckingC2 (neqSet intermediateAbr), ever_applied || not (c1InList && c2InList))
+        _ -> (intermediateAbr, ever_applied)
+    )
+    (abr, False)
+    (conceptAssertionList abr)
 
 applyAndRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
 applyAndRule abrs =
