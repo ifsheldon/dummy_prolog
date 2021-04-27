@@ -148,7 +148,7 @@ main =
     let parentWithMin5Children = AtLeast 5 hasChild getTop
     let parentWithMin4Children = AtLeast 4 hasChild getTop
     let parentWithMin3Children = AtLeast 3 hasChild getTop
-    let parentWithMin3Children = AtLeast 2 hasChild getTop
+    let parentWithMin2Children = AtLeast 2 hasChild getTop
     let parentWithMin1Children = AtLeast 1 hasChild getTop
     let parentWithMin0Children = AtLeast 0 hasChild getTop
     let joe = Individual "Joe"
@@ -162,7 +162,7 @@ main =
     print "Task 4"
     testAssertions task4_ABox_assertions
     print "\n---------------------------------"
-    
+
     let abox_assertions_0 = [RAssert hasChild joe ann, RAssert hasChild joe eva, RAssert hasChild joe mary, RAssert hasChild joe andy]
     print "\n---------------------------------"
     print "-------"
@@ -176,5 +176,20 @@ main =
     print "-------"
     let abox_assertions_3 = CAssert parentWithMax4Children joe : abox_assertions_0
     testAssertions abox_assertions_3
+    print "-------"
+    let abox_assertions_4 = CAssert parentWithMax3Children joe : abox_assertions_0
+    testAssertions abox_assertions_4
+    print "-------"
+    let abox_assertions_5 = CAssert parentWithMax2Children joe : abox_assertions_0
+    testAssertions abox_assertions_5
+    print "-------"
+    let abox_assertions_6 = [CAssert parentWithMin3Children joe, Neq andy ann, Neq andy eva] ++ abox_assertions_0
+    testAssertions abox_assertions_6
+    print "-------"
+    let abox_assertions_7 = [CAssert parentWithMin3Children joe, Neq andy ann, Neq andy eva, Neq ann eva] ++ abox_assertions_0
+    testAssertions abox_assertions_7
+    print "-------"
+    let abox_assertions_8 = [CAssert (Not parentWithMin3Children) joe, Neq andy ann, Neq andy eva, Neq ann eva] ++ abox_assertions_0
+    testAssertions abox_assertions_8
     print "-------"
     print "\n---------------------------------"
