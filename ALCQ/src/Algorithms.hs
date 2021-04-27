@@ -515,7 +515,8 @@ noNumberContradictions abr running_list =
                   in_set_neqs = (Prelude.filter (`HashSet.member` neqSet abr) . Prelude.map (uncurry Neq) . genIndividualCombinations . HashSet.toList) in_cassertions_individuals
                   (individual_list1, individual_list2) = (unzip . Prelude.map (\(Neq i1 i2) -> (i1, i2))) in_set_neqs
                   qualified_individuals = HashSet.fromList (individual_list1 ++ individual_list2)
-               in (HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n || HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
+                  special_case_when_n_is_0 = n == 0 && HashSet.size in_cassertions_individuals > 0
+               in not special_case_when_n_is_0 && (HashSet.size individual_set <= n || HashSet.size in_cassertions_individuals <= n || HashSet.size qualified_individuals <= n) && noNumberContradictions abr as
       _ -> noNumberContradictions abr as
 
 isOpenABox :: ABoxRecord -> Bool
