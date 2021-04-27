@@ -156,6 +156,13 @@ main =
     let eva = Individual "Eva"
     let mary = Individual "Mary"
     let andy = Individual "Andy"
+    -- Task 4
+    let task4_ABox_assertions = [RAssert hasChild joe ann, RAssert hasChild joe eva, RAssert hasChild joe mary, CAssert parentWithMax2Children joe]
+    print "\n---------------------------------"
+    print "Task 4"
+    testAssertions task4_ABox_assertions
+    print "\n---------------------------------"
+    
     let abox_assertions_0 = [RAssert hasChild joe ann, RAssert hasChild joe eva, RAssert hasChild joe mary, RAssert hasChild joe andy]
     print "\n---------------------------------"
     print "-------"
