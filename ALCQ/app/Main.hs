@@ -5,17 +5,22 @@ import Algorithms
 import Data.Foldable (find)
 import Data.HashSet as HashSet
 
+reconstructABox :: ABoxRecord -> ABox
+reconstructABox (ABR relation_map cassertions neq_set) =
+  (Abox . HashSet.fromList) (relationMapToRAssertions relation_map ++ cassertions ++ HashSet.toList neq_set)
+
 testAssertions assertions =
   do
     let (final_abrs, _, forced_stop) = _tableauAlgorithmForTest 50 0 [constructABRFromABox (Abox $ HashSet.fromList assertions)] 0
     let hasOpenABox = anyOpenABoxes final_abrs
-    let maybeOpenABox = find isOpenABox final_abrs
-    print assertions
+    let maybeOpenABox = case find isOpenABox final_abrs of
+          Nothing -> Nothing
+          Just abr -> Just (reconstructABox abr)
     print ("Forced Stop = " ++ show forced_stop)
     print ("ABox Num = " ++ show (length final_abrs))
     print ("Has Open ABox = " ++ show hasOpenABox)
+    --    print final_abrs
     print ("Open ABox = " ++ show maybeOpenABox)
-    print final_abrs
 
 main :: IO ()
 main =

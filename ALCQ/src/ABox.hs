@@ -89,6 +89,6 @@ instance Hashable Assertion where
     CAssert c i -> hashWithSalt salt c + hashWithSalt salt i
     Neq i1 i2 -> hashWithSalt salt i1 + hashWithSalt salt i2
 
-data ABox = Abox (HashSet Assertion)
+data ABox = Abox (HashSet Assertion) deriving (Show)
 
 data TBox = Tbox (HashSet Concept)

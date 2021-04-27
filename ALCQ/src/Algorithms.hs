@@ -14,6 +14,7 @@ module Algorithms
     anyOpenABoxes,
     querySubsumption,
     isOpenABox,
+    relationMapToRAssertions,
   )
 where
 
