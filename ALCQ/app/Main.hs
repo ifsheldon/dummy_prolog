@@ -3,7 +3,6 @@ module Main where
 import ABox
 import Algorithms
 import Data.HashSet as HashSet
-import Data.List (subsequences)
 
 main :: IO ()
 main =
@@ -116,4 +115,14 @@ main =
     print ("Forced stop = " ++ show forcedStop3)
     print finalAbr3
     print ("Exist one open ABox = " ++ show exist_open_abox3)
+    print "\n---------------------------------"
+    -- Simple example: Exist r C is equivalent to AtLeast 1 r C
+    let exist_r_top = Exist r getTop
+    let at_lease_1_r_top = AtLeast 1 r getTop
+    let exist_subsumes_at_least = querySubsumption [exist_r_top] at_lease_1_r_top
+    let at_least_subsume_exist = querySubsumption [at_lease_1_r_top] exist_r_top
+    print "\n---------------------------------"
+    print "Example: Exist r C is equivalent to AtLeast 1 r C"
+    print ("Exist subsumes AtLeast 1? " ++ show exist_subsumes_at_least)
+    print ("AtLeast 1 subsumes Exist? " ++ show at_least_subsume_exist)
     print "\n---------------------------------"
