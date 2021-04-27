@@ -4,6 +4,16 @@ import ABox
 import Algorithms
 import Data.HashSet as HashSet
 
+testAssertions assertions =
+  do
+    let (final_abrs, _, forced_stop) = _tableauAlgorithmForTest 50 0 [constructABRFromABox (Abox $ HashSet.fromList assertions)] 0
+    let hasOpenABox = anyOpenABoxes final_abrs
+    print assertions
+    print ("Forced Stop = " ++ show forced_stop)
+    print ("ABox Num = " ++ show (length final_abrs))
+    print ("Has Open ABox = " ++ show hasOpenABox)
+    print final_abrs
+
 main :: IO ()
 main =
   do
@@ -17,17 +27,10 @@ main =
     let attendedByStudious = Exist attendedBy studious
     let attendedByGoodStudent = Exist attendedBy good_student
     let abox_concept = And (And attendedBySmart attendedByStudious) (Not attendedByGoodStudent)
-    let abox_assertion = CAssert abox_concept individual_a
-    let abox = Abox (HashSet.singleton abox_assertion)
-    let abr = constructABRFromABox abox
-    print abr
-    let (finalAbr, _, forcedStop) = _tableauAlgorithmForTest 20 0 [abr] 0
-    let exist_open_abox = anyOpenABoxes finalAbr
+    let abox_assertions = [CAssert abox_concept individual_a]
     print "\n---------------------------------"
     print "Good Student Example"
-    print ("Forced stop = " ++ show forcedStop)
-    print finalAbr
-    print ("Exist one open ABox = " ++ show exist_open_abox)
+    testAssertions abox_assertions
     print "\n---------------------------------"
     -- Task 3 Point 1
     let s = Relation "s"
@@ -89,15 +92,9 @@ main =
     let at_most_1_not_female = AtMost 1 hasChild not_female
     let someone = Individual "someone"
     let query_assertion2 = CAssert (at_least_3_child `And` at_most_1_female `And` at_most_1_not_female) someone
-    let abr2 = constructABRFromABox (Abox (HashSet.singleton query_assertion2))
-    print abr2
-    let (finalAbr2, _, forcedStop2) = _tableauAlgorithmForTest 20 0 [abr2] 0
-    let exist_open_abox2 = anyOpenABoxes finalAbr2
     print "\n---------------------------------"
     print "Example: at least 3 child, at most 1 female, at most 1 not female"
-    print ("Forced stop = " ++ show forcedStop2)
-    print finalAbr2
-    print ("Exist one open ABox = " ++ show exist_open_abox2)
+    testAssertions [query_assertion2]
     print "\n---------------------------------"
     -- Example: abox = { P(a), AtMost(1,r,P)(a), Exists(r,P)(a), ForAll(r, Exists(r, P))(a), r(a,a) }
     let p = Primitive "P"
@@ -106,15 +103,9 @@ main =
     let exist_r_p_a = CAssert (Exist r p) individual_a
     let r_a_a = RAssert r individual_a individual_a
     let forall_r_exist_r_p_a = CAssert (Forall r (Exist r p)) individual_a
-    let abr3 = constructABRFromABox (Abox (HashSet.fromList [p_a, at_most_1_r_p_a, exist_r_p_a, r_a_a, forall_r_exist_r_p_a]))
-    print abr2
-    let (finalAbr3, _, forcedStop3) = _tableauAlgorithmForTest 20 0 [abr3] 0
-    let exist_open_abox3 = anyOpenABoxes finalAbr3
     print "\n---------------------------------"
     print "Example: abox = { P(a), AtMost(1,r,P)(a), Exists(r,P)(a), ForAll(r, Exists(r, P))(a), r(a,a) }"
-    print ("Forced stop = " ++ show forcedStop3)
-    print finalAbr3
-    print ("Exist one open ABox = " ++ show exist_open_abox3)
+    testAssertions [p_a, at_most_1_r_p_a, exist_r_p_a, r_a_a, forall_r_exist_r_p_a]
     print "\n---------------------------------"
     -- Simple example: Exist r C is equivalent to AtLeast 1 r C
     let exist_r_top = Exist r getTop
@@ -125,4 +116,58 @@ main =
     print "Example: Exist r C is equivalent to AtLeast 1 r C"
     print ("Exist subsumes AtLeast 1? " ++ show exist_subsumes_at_least)
     print ("AtLeast 1 subsumes Exist? " ++ show at_least_subsume_exist)
+    print "\n---------------------------------"
+    -- Basic Examples
+    let lovedBy = Relation "lovedBy"
+    let hatedBy = Relation "hatedBy"
+    let beloved = AtLeast 1 lovedBy getTop
+    let be_hated = AtLeast 1 hatedBy getTop
+    let lovedByAtMost2 = AtMost 2 lovedBy getTop
+    let lovedByAtMost3 = AtMost 3 lovedBy getTop
+    let lovedByAtLeast1 = AtLeast 1 lovedBy getTop
+    let lovedExist = Exist lovedBy getTop
+    let lovedByAll = Forall lovedBy getTop
+    let hatedByAtLeast2 = AtLeast 2 hatedBy getTop
+    let hatedByAtLeast3 = AtLeast 3 hatedBy getTop
+    let hatedByAll = Forall hatedBy getTop
+    print "\n---------------------------------"
+    print ("lovedByAtMost2 subsumes lovedByAtMost3 " ++ show (querySubsumption [lovedByAtMost2] lovedByAtMost3))
+    print ("lovedByAtMost3 subsumes lovedByAtMost2 " ++ show (querySubsumption [lovedByAtMost3] lovedByAtMost2))
+    print ("hatedByAtLeast2 subsumes hatedByAtLeast3 " ++ show (querySubsumption [hatedByAtLeast2] hatedByAtLeast3))
+    print ("hatedByAtLeast3 subsumes hatedByAtLeast2 " ++ show (querySubsumption [hatedByAtLeast3] hatedByAtLeast2))
+    print ("lovedByAtMost3 subsumes hatedByAtLeast2 " ++ show (querySubsumption [lovedByAtMost3] hatedByAtLeast2))
+    print "\n---------------------------------"
+    -- More examples
+    let parentWithMax5Children = AtMost 5 hasChild getTop
+    let parentWithMax4Children = AtMost 4 hasChild getTop
+    let parentWithMax3Children = AtMost 3 hasChild getTop
+    let parentWithMax2Children = AtMost 2 hasChild getTop
+    let parentWithMax1Children = AtMost 1 hasChild getTop
+    let parentWithMax0Children = AtMost 0 hasChild getTop
+
+    let parentWithMin5Children = AtLeast 5 hasChild getTop
+    let parentWithMin4Children = AtLeast 4 hasChild getTop
+    let parentWithMin3Children = AtLeast 3 hasChild getTop
+    let parentWithMin3Children = AtLeast 2 hasChild getTop
+    let parentWithMin1Children = AtLeast 1 hasChild getTop
+    let parentWithMin0Children = AtLeast 0 hasChild getTop
+    let joe = Individual "Joe"
+    let ann = Individual "Ann"
+    let eva = Individual "Eva"
+    let mary = Individual "Mary"
+    let andy = Individual "Andy"
+    let abox_assertions_0 = [RAssert hasChild joe ann, RAssert hasChild joe eva, RAssert hasChild joe mary, RAssert hasChild joe andy]
+    print "\n---------------------------------"
+    print "-------"
+    testAssertions abox_assertions_0
+    print "-------"
+    let abox_assertions_1 = CAssert parentWithMax5Children joe : abox_assertions_0
+    testAssertions abox_assertions_1
+    print "-------"
+    let abox_assertions_2 = CAssert (Not parentWithMax5Children) joe : abox_assertions_0
+    testAssertions abox_assertions_2
+    print "-------"
+    let abox_assertions_3 = CAssert parentWithMax4Children joe : abox_assertions_0
+    testAssertions abox_assertions_3
+    print "-------"
     print "\n---------------------------------"
