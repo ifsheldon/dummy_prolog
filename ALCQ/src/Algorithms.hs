@@ -13,6 +13,7 @@ module Algorithms
     applyRules,
     anyOpenABoxes,
     querySubsumption,
+    isOpenABox,
   )
 where
 
@@ -25,9 +26,9 @@ import Data.Maybe (isNothing)
 import Debug.Trace (trace)
 import Numeric (showHex)
 
-_trace msg arg = trace (msg ++ show arg) arg
+--_trace msg arg = trace (msg ++ show arg) arg
 
---_trace msg arg = arg
+_trace msg arg = arg
 
 stripDoubleNot :: Concept -> Concept
 stripDoubleNot concept =
