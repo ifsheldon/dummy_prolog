@@ -27,6 +27,8 @@ import Numeric (showHex)
 
 _trace msg arg = trace (msg ++ show arg) arg
 
+--_trace msg arg = arg
+
 stripDoubleNot :: Concept -> Concept
 stripDoubleNot concept =
   case concept of
@@ -68,6 +70,7 @@ toNNFAssertion assertion =
   case assertion of
     RAssert _ _ _ -> assertion
     CAssert concept individual -> CAssert (toNNF concept) individual
+    Neq _ _ -> assertion
 
 data ABoxRecord = ABR
   { relationMapping :: HashMap Relation (HashMap Individual (HashSet Individual)),
@@ -406,7 +409,8 @@ applyAtMostRuleForOneABox abr =
   case findSuitableForAtMostRule abr (conceptAssertionList abr) of
     Nothing -> ([abr], False)
     Just suitable_individuals ->
-      let combinations = genIndividualCombinations suitable_individuals
+      let combinations = genIndividualCombinations (_trace "suitable individuals" suitable_individuals)
+          valid_combinations = Prelude.filter (\(i1, i2) -> not (Neq i1 i2 `HashSet.member` neqSet abr)) combinations
           new_abrs =
             Prelude.map
               ( \(i1, i2) ->
@@ -416,7 +420,7 @@ applyAtMostRuleForOneABox abr =
                       after_replace_i1 = replaceIndividualInABox abr (i1, replacement)
                    in replaceIndividualInABox after_replace_i1 (i2, replacement)
               )
-              combinations
+              valid_combinations
        in (new_abrs, True)
 
 applyAtMostRule :: [ABoxRecord] -> ([ABoxRecord], Bool)
