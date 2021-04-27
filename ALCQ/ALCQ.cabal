@@ -61,5 +61,7 @@ test-suite ALCQ-test
   build-depends:
       ALCQ
     , base >=4.7 && <5,
-    unordered-containers
+    unordered-containers,
+    tasty,
+    tasty-hunit
   default-language: Haskell2010
